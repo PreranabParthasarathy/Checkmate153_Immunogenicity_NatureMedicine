@@ -1,0 +1,192 @@
+---
+title: "Figure 2 "
+output: html_document
+date: "2023-06-13"
+---
+
+```{r setup, include=FALSE}
+library(survminer)
+library(survival)
+library(dplyr)
+library(stringr)
+library(tidyverse)
+library(ComplexHeatmap)
+set.seed(7)
+```
+
+## Figure 2A: Delta CCF waterfall plot - using calculated ccf 
+###           input: master 
+
+
+```{r input}
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure2/"
+```
+
+###           input: clinical response data
+```{r input2}
+clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
+clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
+clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"
+clinical_data_response$color<-NA
+clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"green"
+clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
+clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
+```
+
+### using calculated ccf after bamreadcount - Columns are called ccf_pre and ccf_on
+#### mutational.change is the delta_ccf of < -0.1 is Genomic Contraction > 0.1 is genomic Expansion and others are Genomic Persistence
+
+#### Figure 2A is in the 
+
+```{r cal_DeltaCCF, echo=FALSE}
+master$delta_ccf<-master$ccf_on - master$ccf_pre
+
+#### get net change
+## fraction of muations of the whole that are showing genomic contraction/ mutations in genomic expansion
+df1<-master[,c("ccf_pre","ccf_on","delta_ccf",'mutational.change','patient',"PT_MUT")]
+df1<-unique(df1)
+tdf1<-as.data.frame(table(df1$mutational.change,df1$patient))
+
+tdf2<-spread(tdf1,Var1,Freq)
+colnames(tdf2)[1]<-"Patient"
+### check with tyler!!
+tdf2$net_change<-tdf2$`Genomic Persistence`-tdf2$`Genomic Contraction`
+
+#tdf2$net_change<-tdf2$Contraction-tdf2$Expansion
+tdf2<-merge(tdf2,clinical_data_response,by.x="Patient",by.y="PatientID",all.x=TRUE)
+tdf2$total_muts<-tdf2$`Genomic Contraction` + tdf2$`Genomic Expansion`+tdf2$`Genomic Persistence`
+
+tdf2$net_change_percent<-tdf2$net_change/tdf2$total_muts
+
+tdf2<-tdf2[order(tdf2$net_change_percent),]
+
+#pdf(paste0(out_dir,"Figure2A.pdf"),height=6.5,width=11,onefile = TRUE)
+barplot(tdf2$net_change_percent, col=tdf2$color, border=tdf2$color, space=0.4,
+ylab="Net Change",names=tdf2$Patient,las=2,main="Persistance - Contraction",
+cex.axis=1.2, cex.lab=1.7,legend.text= c( "PR: Partial Response", "SD: Stable Disease", "PD: Progressive Disease"),
+        args.legend=list(title="Best Overall Response", fill=c("green","orange",  "red"),x="topright",inset = c(0, 0.5),cex=1.5))
+
+```
+
+```{r echo=FALSE,include=FALSE,results='hide'}
+#dev.off()
+tdf2rn<-tdf2
+row.names(tdf2rn)<-tdf2$Patient
+PdHeatanno<-as.data.frame(t(tdf2rn[c("PFS_time", "OS_time_Mon", "total_muts","net_change_percent")]))
+PdHeat<-as.data.frame(t(tdf2rn[c("net_change")]))
+
+ds<-HeatmapAnnotation(
+  PFS_time=tdf2rn$PFS_time,
+  OS_time=tdf2rn$OS_time_Mon,
+  SNV=tdf2rn$total_muts,
+  Contraction=tdf2rn$`Genomic Contraction`,
+  Expansion=tdf2rn$`Genomic Expansion`,
+  Persistance=tdf2rn$`Genomic Persistence`
+)
+
+
+#pdf(paste0(out_dir,"Figure2A_subpanel.pdf"),height=3,width=11)
+Heatmap(as.matrix(PdHeat),top_annotation = ds, cluster_columns = F, cluster_rows = F )
+#dev.off()
+
+```
+
+
+#### Survival for the patients that have more persistent mutations vs more contracted mutations 
+
+```{r survival, echo=FALSE}
+#tdf2$mt_change<-tdf2$`Genomic Persistence`- tdf2$`Genomic Contraction`
+tdf2$Highlow<-ifelse(tdf2$net_change < 0, "More Contraction", "More Persistence")
+#tdf2$sHighlow<-as.factor(tdf2$Highlow)
+
+f<-survfit(Surv(OS_time_Mon, OS_event) ~ Highlow, data = tdf2)
+#pdf(paste0(out_dir,"Figure2B.pdf"), onefile = TRUE ,height=7,width=10)
+ggsurvplot(fit = f,pval=TRUE, risk.table=TRUE,
+           xlab = "Months",
+           legend.labs=c("More Contarction","More Persistence"),
+           legend="bottom",
+           palette=c("red", "blue"),
+           pval.coord=c(2,0.25),
+           ylab = "Overall survival probability", title=paste("Survival based on mutational change", sep=" "),
+           ggtheme = theme_classic2(base_size=12))
+#dev.off()
+
+```
+
+#### Figure 2C 1 and 2 is from PhylogicNDT results. 2C part 3 is the cluster plots function - Pt1683
+#### Figure 2D 1 and 2 is from PhylogicNDT results. 2C part 3 is the cluster plots function - Pt1643
+
+```{r cluster plots function, echo=TRUE}
+master_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+```
+
+```{r 2 pts for figure 2, echo=FALSE}
+
+figure2_pts<-c("Pt1683","Pt1643")
+
+#i=figure2_pts[1]
+
+for(i in figure2_pts){
+  print(i)
+  s_master<-master[which(master$patient == i),c(1:4,8,12,13,14,18)]
+  s_master_pre<-subset(s_master,select = -ccf_on)
+  s_master_on<-subset(s_master,select = -ccf_pre)
+  colnames(s_master_pre)[5]<-"CCF"
+  colnames(s_master_on)[5]<-"CCF"
+  s_master_pre$cluster<-as.factor(as.numeric(s_master_pre$cluster))
+  s_master_on$cluster<-as.factor(as.numeric(s_master_on$cluster))
+
+  OnPreComb<-dplyr::bind_rows(list(pre= s_master_pre,  on= s_master_on), .id = 'Time')
+  OnPreComb$Time<-factor(OnPreComb$Time, levels=c("pre", "on"))
+  OnPreComb$cluster <- factor(OnPreComb$cluster, levels = c(as.character(1:max(as.numeric(levels(OnPreComb$cluster))))))
+  ccountv1<-OnPreComb %>% dplyr::count(cluster)
+  #pdf(paste0(out_dir,i,".pdf"),height=8, width=10)
+  g1<-ggplot(OnPreComb, aes(x=reorder(paste(cluster,"(n=",ccountv1[cluster,'n'],")",sep = ""),-CCF, na.rm = TRUE), y=CCF,
+                        fill=Time)) + geom_boxplot(outlier.shape = NA) + theme_pubclean() + theme(axis.text.x = element_text(angle = 90))
+  print(g1)
+  #dev.off()
+}
+
+
+```
+
+```{r density plots, echo=FALSE}
+
+s_master<-master[,c(1:4,8,12,13,14,18)]
+s_master_pre<-subset(s_master,select = -ccf_on)
+s_master_on<-subset(s_master,select = -ccf_pre)
+colnames(s_master_pre)[5]<-"CCF"
+colnames(s_master_on)[5]<-"CCF"
+s_master_pre$cluster<-as.factor(as.numeric(s_master_pre$cluster))
+s_master_on$cluster<-as.factor(as.numeric(s_master_on$cluster))
+
+OnPreComb<-dplyr::bind_rows(list(pre= s_master_pre,  on= s_master_on), .id = 'Time')
+OnPreComb$Time<-factor(OnPreComb$Time, levels=c("pre", "on"))
+
+# All Variants
+ggplot(OnPreComb, aes(x=CCF,color=Time)) + geom_density() +theme_pubclean()
+ggplot(OnPreComb, aes(x=CCF,color=Time)) + geom_density() +facet_wrap(vars(myBOR))+theme_pubclean()
+
+```
+
+```{r 2F boxplots, echo=FALSE}
+#s_master<-master[,c(1:4,8,12,13,14,18)]
+s_master$deltaCCF<-s_master$ccf_on - s_master$ccf_pre
+s_master$pt_cluster<-paste0(s_master$patient,"_",s_master$cluster)
+dd<-s_master %>% group_by(pt_cluster) %>% 
+  summarise(meanCCF=mean(ccf_pre))
+s_master<-merge(s_master, dd, by.x="pt_cluster",by.y="pt_cluster",all.x=TRUE)
+s_master$meanCCF_group<-ifelse(s_master$meanCCF >= 0.50,"Mean CCF >= 50","Mean CCF < 50")
+s_master$myBOR<-factor(s_master$myBOR, levels = c("PR","SD","PD"))
+s_master$meanCCF_group<-factor(s_master$meanCCF_group, levels = c("Mean CCF < 50","Mean CCF >= 50"))
+
+
+#pdf(paste0(out_dir,"Figure2F.pdf"),height=8,width = 10)
+ggplot(s_master,aes(x=meanCCF_group,y=deltaCCF,fill=meanCCF_group)) + geom_boxplot(outlier.shape = NA) + facet_wrap(vars(myBOR))+theme_pubclean() +  theme(axis.text.x = element_text(angle = 90)) + stat_compare_means() +ylab("Delta CCF Variants") + xlab("") +theme(legend.position = "none")
+#dev.off()
+
+```
