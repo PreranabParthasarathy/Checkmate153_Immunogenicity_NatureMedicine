@@ -1,0 +1,133 @@
+---
+title: "Figure1"
+author: "Prerana Parthasarathy"
+date: "2023-06-12"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+library(survminer)
+library(survival)
+library(dplyr)
+set.seed(7)
+```
+
+## Figure 1E: Change in SNV count for each Pt colored by response (36 paired pts)
+###           input: mutation counts file 
+
+
+```{r input}
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+mut_counts_file<-"MUTATIONS_COUNT_NEOANTIGENS.txt"
+mut_counts<-read.delim(paste0(data_dir,mut_counts_file),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure1/"
+```
+
+###           input: clinical response data
+```{r input2}
+clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
+clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
+clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"
+clinical_data_response$color<-NA
+clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"green"
+clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
+clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
+
+```
+
+## Including Plots
+
+### Figure 1E - Good
+
+```{r SNV_change_in_muts_1E, echo=FALSE}
+mut_counts<-mut_counts[order(mut_counts$SNV_change_in_mutations),]
+mut_counts_response<-merge(mut_counts,clinical_data_response,by.x="patient",by.y="PatientID",all.x=TRUE)
+mut_counts_response<-mut_counts_response[order(mut_counts_response$SNV_change_in_mutations),]
+
+
+#pdf(paste0(out_dir,"fig1E_SNV_change_in_mutations.pdf"),height=7,width=10)
+barplot(mut_counts_response$SNV_change_in_mutations, col=mut_counts_response$color, border=mut_counts_response$color, space=0.3,
+main = "Reduced SNVs is associated with clinical response", ylab="Change in Mutations (SNV)",names=mut_counts_response$patient,las=2,
+cex.axis=1.2, cex.lab=1.7,legend.text= c( "PR: Partial Response", "SD: Stable Disease", "PD: Progressive Disease"),
+        args.legend=list(title="Best Overall Response", fill=c("green","orange",  "red"),x="topright",inset = c(0, 0.5),cex=1.5))
+#dev.off()
+```
+
+### Figure 1F and 1G
+survival OS and PFS of SNV_Change_in_mutations - split by median. 
+
+```{r OS for groups, echo=FALSE}
+mut_counts_response$groups<-NA
+v<-median(mut_counts_response$SNV_change_in_mutations)
+mut_counts_response$groups[which(mut_counts_response$SNV_change_in_mutations<=v)]<-"Reduced_on_therapy"
+mut_counts_response$groups[which(mut_counts_response$SNV_change_in_mutations>v)]<-"Increased_on_therapy"
+mut_counts_response$groups<-as.factor(mut_counts_response$groups)
+#table(mut_counts_response$groups)
+
+OS_fit <- survfit(Surv(OS_time_Mon, OS_event) ~ groups, data = mut_counts_response)
+#pdf(paste0(out_dir,"fig1F_OS.pdf"))
+ggsurvplot(OS_fit, data = mut_counts_response,
+           pval = TRUE, palette=c("red","blue"),
+           risk.table = TRUE, xlab="Months",pval.coord=c(2,0.25),
+           legend.labs=c("Increased_on_therapy", "Reduced_on_therapy"), legend="bottom",
+           ylab="Overall Survival Probability",title="Survival split by median of SNV_change_in_mutations",
+           font.title = c(8, "bold", "darkblue"))
+#dev.off()
+
+PFS_fit <- survfit(Surv(PFS_time, PFS_event) ~ groups, data = mut_counts_response)
+#pdf(paste0(out_dir,"fig1G_PFS.pdf"))
+ggsurvplot(PFS_fit, data = mut_counts_response,
+           pval = TRUE,palette=c("red","blue"),
+           risk.table = TRUE,xlab="Months",pval.coord=c(2,0.25),
+           legend.labs=c("Increased_on_therapy", "Reduced_on_therapy"),legend="bottom",
+           ylab="PFS",title="Survival split by median of SNV_change_in_mutations",
+           font.title = c(8, "bold", "darkblue"))
+#dev.off()
+
+```
+
+### Overall Survival for SNV and INDEL mut counts. 
+
+
+```{r echo=FALSE, warning=FALSE,results='hide',include=FALSE}
+
+comps<-c("SNV_pre_mutations","SNV_on_mutations","SNV_change_in_mutations","INDEL_pre_mutations", "INDEL_on_mutations","INDEL_change_in_mutations")
+
+wfd2<-mut_counts_response
+#table(wfd2$patient)
+survcurvs<-lst()
+
+for(i in comps){
+val<-median(wfd2[,i])
+wfd2$Highlow<-ifelse(wfd2[,i]>val, "high", "low")
+wfd2$sHighlow<-as.factor(wfd2$Highlow)
+
+
+f<-survfit(Surv(OS_time_Mon, OS_event) ~ Highlow, data = wfd2)
+
+#pdf(paste(outdir, "survivalCurve", i, ".pdf", sep=''), height=6, width=6,onefile = FALSE )
+survp<-ggsurvplot(fit = f,pval=TRUE, risk.table=TRUE,
+                  xlab = "Months", 
+                   legend.labs=c("High", "Low"),
+                  legend="bottom",
+                  palette=c("red", "blue"),
+                  pval.coord=c(2,0.25),
+                  ylab = "Overall survival probability", title=paste("Survival split by median of", i, sep=" "),
+                  font.title = c(8, "bold", "darkblue"))
+print(survp)
+#dev.off()
+survcurvs[i]<-survp
+
+}
+
+#print(c(survcurvs[1], survcurvs[2], survcurvs[3], survcurvs[4], survcurvs[5], survcurvs[6]))
+```
+
+
+### Figure 1 supplemental 
+####	A: coOnco
+####	B: coOnco
+####	C: OddsRatio
+####  D: OddsRatio
+####  E: OncoPlot with response
+####  F: survival based on HED
