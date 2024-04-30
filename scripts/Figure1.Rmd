@@ -17,10 +17,10 @@ set.seed(7)
 
 
 ```{r input}
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
 mut_counts_file<-"MUTATIONS_COUNT_NEOANTIGENS.txt"
 mut_counts<-read.delim(paste0(data_dir,mut_counts_file),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure1/"
+#out_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/plots/Figure1/"
 ```
 
 ###           input: clinical response data

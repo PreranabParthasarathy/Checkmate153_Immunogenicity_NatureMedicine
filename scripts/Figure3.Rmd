@@ -1,0 +1,218 @@
+---
+title: "Figure3"
+output:
+  html_document: default
+date: "2023-06-15"
+---
+
+```{r setup, include=FALSE}
+library(survminer)
+library(survival)
+library(dplyr)
+library(stringr)
+library(tidyverse)
+library(ComplexHeatmap)
+library(ggpubr)
+set.seed(7)
+```
+
+
+###           input: master 
+```{r input,echo=FALSE}
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/"
+```
+
+```{r input1, echo=FALSE}
+data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+#out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/"
+```
+
+###           input: clinical response data
+```{r input2, echo=FALSE}
+clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
+clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
+clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"
+clinical_data_response$color<-NA
+clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"green"
+clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
+clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
+clinical_data_response$myBOR<-gsub("CR/PR","PR",clinical_data_response$myBOR)
+```
+
+
+```{r submittedFigure3C, echo=F}
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+# table(master$tetramer)
+# table(master$Binder)
+master_heatmap_df <- master[,c("patient","MT.Peptide.x","Binder","tetramer","PreRx","OnRx1","OnRx2","myBOR","PT_PEP","mutational.change","PT_MUT","Pep_Length")]
+master_heatmap_df$tetramer<-factor(master_heatmap_df$tetramer,levels = c("TETRAMER+","TETRAMER-"))
+master_heatmap_df<-master_heatmap_df[order(master_heatmap_df$tetramer),]
+master_heatmap_df<-master_heatmap_df[which(!duplicated(master_heatmap_df$PT_MUT)),]
+# table(master_heatmap_df$tetramer)
+# table(master_heatmap_df$Binder)
+# table(master_heatmap_df$Pep_Length)
+#master_heatmap_df <- master_heatmap_df[-which(is.na(master_heatmap_df$Binder)),]
+master_heatmap_df$tetramer<-as.character(master_heatmap_df$tetramer)
+master_heatmap_df$sanquin_results <- ifelse(is.na(master_heatmap_df$tetramer),"NON_BINDER",master_heatmap_df$tetramer)
+master_heatmap_df$sanquin_results_1 <- master_heatmap_df$sanquin_results
+master_heatmap_df$sanquin_results_1 <-gsub("NON_BINDER","1",master_heatmap_df$sanquin_results_1)
+master_heatmap_df$sanquin_results_1 <-gsub("TETRAMER[-]","2",master_heatmap_df$sanquin_results_1)
+master_heatmap_df$sanquin_results_1 <-gsub("TETRAMER[+]","3",master_heatmap_df$sanquin_results_1)
+
+
+anno_df<-as.data.frame(table(master_heatmap_df$patient,master_heatmap_df$sanquin_results))
+colnames(anno_df)<-c("Patient","Sanquin_Results","count")
+
+anno_df$Sanquin_Results<-factor(anno_df$Sanquin_Results, levels = c("NON_BINDER","TETRAMER-","TETRAMER+"))
+
+
+anno_df_2<-spread(anno_df,"Sanquin_Results","count")
+anno_df_2$Non_Immuno<-anno_df_2$NON_BINDER+anno_df_2$`TETRAMER-`
+anno_df_2$percent_immuno1<-(anno_df_2$`TETRAMER+`/(anno_df_2$`TETRAMER+` +anno_df_2$Non_Immuno))*100
+anno_df_2$percent_immuno2<-(anno_df_2$`TETRAMER+`/(anno_df_2$Non_Immuno))*100
+
+anno_df_3<-anno_df_2[which(anno_df_2$percent_immuno1!=0),]
+anno_df_3$sum<-anno_df_3$NON_BINDER +anno_df_3$`TETRAMER-` +anno_df_3$`TETRAMER+`
+anno_df_3<-merge(anno_df_3,clinical_data_response,by.x="Patient",by.y="PatientID",all.x=TRUE)
+anno_df_3$color<-factor(anno_df_3$color,levels = c("green","orange","red"))
+anno_df_4<-anno_df_3[order(anno_df_3$color),]
+my.order<-anno_df_4$Patient
+anno_df_4$Patient<-factor(anno_df_4$Patient,levels =my.order)
+
+ggplot(anno_df_4,aes(x=Patient,y=percent_immuno1)) + geom_bar(stat = "identity",fill="blue2") +
+  theme_pubr() + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) +ggtitle("Percent tetramer+ of all mutations ") + ylab("Percent Neoantigens")
+
+```
+
+### Figure 3 D and F
+
+## All Sanquin (1453) 9mers and 10mers with duplicated mutations and calculated ccf
+```{r 3DF, echo=FALSE}
+master<-master[which(!is.na(master$Pep_Length)),]
+master$percent_log_fold_change<-log2((master$OnRx1+master$OnRx2+0.01)/(master$PreRx+0.01))
+
+master$increaseTcell <- NA
+master$increaseTcell <- ifelse(master$percent_log_fold_change > 0, "increase","decrease")
+master$ccf_change<-master$ccf_on-master$ccf_pre
+
+master_plot1_1<-master[which(!is.na(master$increaseTcell)),]
+master_plot2<-master_plot1_1[which(master_plot1_1$tetramer == "TETRAMER+"),]
+ggplot(master_plot2, aes(x=increaseTcell,fill=increaseTcell)) + geom_bar()  + theme_pubclean() + labs(y=" Count of tetramer+ peptides", x="T cells")+scale_fill_manual(values=c("khaki1", "hotpink1"))
+ggplot(master_plot2, aes(x=increaseTcell, y=ccf_change, fill=increaseTcell)) + geom_boxplot() +stat_compare_means(method = "t.test") + theme_pubclean() + labs(y=" Delta CCF", x="T cells")+scale_fill_manual(values=c("khaki1", "hotpink1"))
+
+```
+
+```{r 3E, echo=FALSE}
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+s_master<-master[which(!is.na(master$Binder)),]
+s_master$myBOR<-factor(s_master$myBOR,levels = c("PD","SD","PR"))
+s_master_tet<-s_master[which(!is.na(s_master$tetramer)),]
+s_master_tet$response<-ifelse(s_master_tet$myBOR %in% c("PR","SD"),"Responder","Non-Responder")
+
+s_master_tet_pos<-s_master_tet[which(s_master_tet$tetramer == "TETRAMER+"),]
+s_master_tet_pos$percent_pre_log<-log(s_master_tet_pos$PreRx)
+s_master_tet_pos$percent_on_log<-log(s_master_tet_pos$OnRx1 + s_master_tet_pos$OnRx2)
+s_master_tet_pos$percent_pre<-s_master_tet_pos$PreRx
+s_master_tet_pos$percent_on<-s_master_tet_pos$OnRx1 + s_master_tet_pos$OnRx2
+
+s_master_tet_pos$foldchange<-(s_master_tet_pos$percent_on+0.0001)/(s_master_tet_pos$percent_pre+0.0001)
+s_master_tet_pos$log_foldchange<-log2(s_master_tet_pos$foldchange)
+s_master_tet_pos$myBOR<-factor(s_master_tet_pos$myBOR, levels = c("PR","SD","PD"))
+
+my_comparisons<- list( c("PR", "SD"), c("SD", "PD"),c("PR","PD"))
+ggplot(s_master_tet_pos,aes(myBOR,log_foldchange,fill=myBOR)) + geom_boxplot(outlier.shape = NA)  +
+scale_fill_manual(values = c("green","orange","red")) +theme_pubclean()+ ylab("LogFoldChange")+stat_compare_means(comparison=my_comparisons )
+
+```
+
+
+
+```{r input_2, include=FALSE}
+data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
+master_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+#master_file<-"master_NDT_VMResults_v2_CCFmean_duplicated.txt"
+master_ndt<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/"
+```
+
+### 3H
+How many patients out of the 64 patients have the tetramer+ peptides 
+
+```{r 3H, echo=FALSE,warning=FALSE}
+
+data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/"
+
+all_peptides<-rbind(read.delim(file="/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/peptides/BMS_153.AllBindersPan_wgenes.9.txt",header = TRUE,sep = "\t"),
+                    read.delim(file="/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/peptides/BMS_153.AllBindersPan_wgenes.10.txt",header = TRUE,sep = "\t"))
+all_peptides$patient<-str_split_fixed(all_peptides$Sample,"_",2)[,1]
+keep_cols<-c("Sample","HLAI","WT.Peptide","MT.Peptide","WT.Allele","MT.Allele","WT.Score","MT.Score","CHROM_POS_REF_ALT","Hugo_Symbol","patient")
+all_peptides<-all_peptides[,keep_cols]
+all_peptides$PEP_LEN<-str_length(all_peptides$WT.Peptide)
+all_peptides$PEP_MUT_POS<-0
+for(i in 1:nrow(all_peptides)){
+  for(j in 1:str_length(all_peptides$WT.Peptide[i])){
+    if(strsplit(all_peptides$WT.Peptide[i],split="")[[1]][j] != strsplit(all_peptides$MT.Peptide[i],split="")[[1]][j]){
+      all_peptides$PEP_MUT_POS[i]<-j
+    }else {
+      next
+    }
+  }
+}
+
+
+
+tpos_peptides<-master$MT.Peptide.x[which(master$tetramer=="TETRAMER+")]
+
+#a<-all_peptides[which(all_peptides$MT.Peptide %in% tpos_peptides),c("Hugo_Symbol","patient","CHROM_POS_REF_ALT","MT.Peptide")]
+#subset_all_peps<-unique(all_peptides[which(all_peptides$MT.Peptide %in% tpos_peptides),c("Hugo_Symbol","patient","CHROM_POS_REF_ALT","MT.Peptide")])
+subset_all_peps_1<-unique(all_peptides[which(all_peptides$MT.Peptide %in% tpos_peptides),c("patient","MT.Peptide","Hugo_Symbol")])
+df<-aggregate(subset_all_peps_1,by=list(subset_all_peps_1$MT.Peptide),FUN = "length")
+#df<-aggregate(a,by=list(a$MT.Peptide),FUN = "length")
+df$name<-NA
+for(i in 1:nrow(df)){
+  df$name[i]<-subset_all_peps_1$Hugo_Symbol[which(subset_all_peps_1$MT.Peptide==df$Group.1[i])]
+}
+
+ggplot(df,aes(x=Group.1,y=Hugo_Symbol)) + geom_point(stat = "identity") + geom_text(data=subset(df, Hugo_Symbol > 1),aes(Group.1,Hugo_Symbol,label=name),hjust=-0.1, vjust=c(0,0,0,0,0,0,-1,1))  +
+  labs(x="Tetramer+ peptides", y = "Number of patients with Peptide") + theme_pubclean() + theme(axis.text.x = element_text(angle = 90))
+
+
+
+
+
+```
+
+
+```{r Fig3I, echo=FALSE, warning=FALSE}
+
+data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
+master_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+#master_file<-"master_NDT_VMResults_v2_CCFmean_duplicated.txt"
+master_ndt<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/"
+krasdata<-master_ndt[master_ndt$Hugo_Symbol == "KRAS",]
+
+krasdata$mut<-str_split_fixed(krasdata$PT_MUT,"_",2)[,2]
+krasdata$myBOR<-factor(krasdata$myBOR)
+krasdata$mut<-factor(krasdata$mut)
+
+
+ggpaired(krasdata, cond1 = "ccf_pre", cond2 = "ccf_on",
+         fill = "condition", line.color="myBOR")+
+  stat_compare_means(paired = T, method = "t.test", label.y=1.15)+
+  xlab("Time")+
+  ylab("CCF")+
+  facet_wrap(~myBOR)
+
+```
+

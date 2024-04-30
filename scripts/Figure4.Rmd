@@ -1,0 +1,191 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-06-20"
+---
+
+```{r setup, include=FALSE}
+library(survminer)
+library(survival)
+library(dplyr)
+library(stringr)
+library(tidyverse)
+set.seed(7)
+```
+
+
+###           input: master 
+```{r input, echo=FALSE}
+data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master_file_ndt<-"master_NDT_VMResults_v2_CCFmean_duplicated.txt"
+master_file_ndt<-"master_NDT_VMResults_v2_CCFmean.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+master_ndt<-read.delim(paste0(data_dir,master_file_ndt),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure4/"
+```
+
+###           input: clinical response data
+```{r input2,echo=FALSE}
+clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
+clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
+clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"
+clinical_data_response$color<-NA
+clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"green"
+clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
+clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
+clinical_data_response$myBOR<-gsub("CR/PR","PR",clinical_data_response$myBOR)
+```
+
+### Figure 4A
+
+```{r AB,echo=FALSE}
+#stacked barplot of number of Binders and tetramers
+s_master<-master[which(!is.na(master$Binder)),]
+s_master_ndt<-master_ndt[which(!is.na(master_ndt$Binder)),]
+
+s_master$myBOR<-factor(s_master$myBOR,levels = c("PD","SD","PR"))
+ggplot(s_master,aes(x=Binder,fill=myBOR)) + geom_bar(stat="count",position = "fill") + theme_pubclean() + ylab("Frequency")+scale_fill_manual(values = c("red","orange","green"))
+
+```
+
+### Figure 4B
+
+```{r B, echo=FALSE}
+s_master_tet<-s_master[which(!is.na(s_master$tetramer)),]
+ggplot(s_master_tet,aes(x=tetramer,fill=myBOR)) + geom_bar(stat="count",position = "fill") + theme_pubclean() +ylab("Frequency")+scale_fill_manual(values = c("red","orange","green"))
+
+```
+
+### Figure 4 D,E,F
+
+```{r CDE, echo=FALSE}
+s_master_ndt$DeltaCCF<-s_master_ndt$ccf_on - s_master_ndt$ccf_pre
+s_master_ndt_tet<-s_master_ndt[which(!is.na(s_master_ndt$tetramer)),]
+s_master_ndt_tet$pre_clonal<-ifelse(s_master_ndt_tet$ccf_pre >= 0.95, "clonal","subclonal")
+s_master_ndt_tet$response<-ifelse(s_master_ndt_tet$myBOR %in% c("PR","SD"),"Responder","Non-Responder")
+s_master_tet$response<-ifelse(s_master_tet$myBOR %in% c("PR","SD"),"Responder","Non-Responder")
+```
+
+
+#### Calculated CCF
+
+```{r CDE1, echo=FALSE}
+s_master_tet$DeltaCCF<-s_master_tet$ccf_on - s_master_tet$ccf_pre
+d<-ggplot(s_master_tet, aes(x=tetramer,y=DeltaCCF, fill = tetramer)) + geom_boxplot() +stat_compare_means(method = "t.test") + theme_pubclean() + scale_fill_manual(values = c("green2","blue2"))
+
+## using pre_clonal - cutoff 95
+e<-ggplot(s_master_tet, aes(x=tetramer,y=DeltaCCF,fill=tetramer)) + geom_boxplot() + facet_wrap(~pre_clonal)+stat_compare_means(method = "t.test") + theme_pubclean() + scale_fill_manual(values = c("green2","blue2"))
+
+f<-ggplot(s_master_tet, aes(x=tetramer,y=DeltaCCF,fill=tetramer)) + geom_boxplot() + facet_wrap(~response)+stat_compare_means(method = "t.test") + theme_pubclean() + scale_fill_manual(values = c("green2","blue2"))
+
+d
+e
+f
+```
+#### PhylogicNDT CCF
+
+```{r DEF2, echo=FALSE}
+# d<-ggplot(s_master_ndt_tet, aes(x=tetramer,y=DeltaCCF, fill = tetramer)) + geom_boxplot() +stat_compare_means(method = "t.test") + theme_pubclean() + scale_fill_manual(values = c("green2","blue2"))
+# 
+# e<-ggplot(s_master_ndt_tet, aes(x=tetramer,y=DeltaCCF,fill=tetramer)) + geom_boxplot() + facet_wrap(~pre_clonal)+stat_compare_means(method = "t.test") + theme_pubclean()+ scale_fill_manual(values = c("green2","blue2"))
+# 
+# f<-ggplot(s_master_ndt_tet, aes(x=tetramer,y=DeltaCCF,fill=tetramer)) + geom_boxplot() + facet_wrap(~response)+stat_compare_means(method = "t.test") + theme_pubclean()+ scale_fill_manual(values = c("green2","blue2"))
+# 
+# 
+# d
+# e
+# f
+```
+
+
+
+### Figure 4 G,H
+
+```{r GH, echo=FALSE}
+data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
+master_file_ndt<-"master_NDT_VMResults_v2_CCFmean.txt"
+master_ndt<-read.delim(paste0(data_dir,master_file_ndt),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure4/"
+
+
+figure2_pts<-c("Pt1683","Pt1643")
+
+i=figure2_pts[1]
+
+for(i in figure2_pts){
+  s_master<-master_ndt[which(master_ndt$patient == i),c(1:4,8,12,13,14,18)]
+  s_master_pre<-subset(s_master,select = -ccf_on)
+  s_master_on<-subset(s_master,select = -ccf_pre)
+  colnames(s_master_pre)[5]<-"CCF"
+  colnames(s_master_on)[5]<-"CCF"
+  s_master_pre$cluster<-as.factor(as.numeric(s_master_pre$cluster))
+  s_master_on$cluster<-as.factor(as.numeric(s_master_on$cluster))
+  s_master_pre$color <- ifelse(s_master_pre$tetramer == "TETRAMER+","blue2",NA)
+  s_master_on$color <- ifelse(s_master_on$tetramer == "TETRAMER+","blue2",NA)
+
+  OnPreComb<-dplyr::bind_rows(list(pre= s_master_pre,  on= s_master_on), .id = 'Time')
+  OnPreComb$Time<-factor(OnPreComb$Time, levels=c("pre", "on"))
+  OnPreComb$cluster <- factor(OnPreComb$cluster, levels = c(as.character(1:max(as.numeric(levels(OnPreComb$cluster))))))
+  ccountv1<-OnPreComb %>% dplyr::count(cluster)
+  #pdf(paste0(out_dir,i,".pdf"),height=8, width=10)
+  g1<-ggplot(OnPreComb, aes(x=reorder(paste(cluster,"(n=",ccountv1[cluster,'n'],")",sep = ""),-CCF, na.rm = TRUE), y=CCF,
+                        fill=Time)) +
+    geom_boxplot(outlier.shape = NA)+
+    geom_jitter(position=position_jitterdodge(),size=0.7, colour=OnPreComb$color) +
+    theme_pubclean() +
+    theme(axis.text.x = element_text(angle = 90))+
+    xlab("Clusters") + ylab("CCF")
+  print(g1)
+  #dev.off()
+}
+
+```
+
+### Figure 4 I, J
+
+```{r IJ, echo=FALSE}
+
+data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master_ndt_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+master_ndt<-read.delim(paste0(data_dir,master_ndt_file),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure4/"
+sanquin_pts<-unique(master$patient[which(!is.na(master$Binder))])
+
+master_ndt$pt_cluster<-paste0(master_ndt$patient,"_",master_ndt$cluster)
+mean_pre<-aggregate(master_ndt$ccf_pre, list(master_ndt$pt_cluster), mean)
+colnames(mean_pre)<-c("pt_cluster","meanCCF")
+master_ndt<-merge(master_ndt,mean_pre,by.x = "pt_cluster",by.y="pt_cluster",all.x=T)
+master_ndt$mean_CCF_group<-ifelse(master_ndt$meanCCF >= 0.50,"MeanCCF>=50","MeanCCF<50")
+
+master_ndt$deltaCCF<-master_ndt$ccf_on - master_ndt$ccf_pre
+
+tpos_cluster<-as.data.frame(table(master_ndt$pt_cluster, master_ndt$tetramer))
+tpos_cluster<-tpos_cluster[which(tpos_cluster$Var2=="TETRAMER+" & tpos_cluster$Freq>0),]
+no_tpos_cluster<-as.data.frame(table(master_ndt$pt_cluster, master_ndt$tetramer))
+no_tpos_cluster<-no_tpos_cluster[which(no_tpos_cluster$Var2=="TETRAMER+" & no_tpos_cluster$Freq==0),]
+
+master_ndt$tpos_cluster<-ifelse(master_ndt$pt_cluster %in% tpos_cluster$Var1, "Cluster with Tetramer+","Cluster without Tetramer+")
+
+master_ndt$Binder[which(is.na(master_ndt$Binder))]<-"variant"
+#master_ndt$tetramer[which(is.na(master_ndt$tetramer))]<-"variant"
+
+nb_master_ndt<-master_ndt[which(master_ndt$Binder == "variant"),]
+nb_master_ndt$myBOR<-factor(nb_master_ndt$myBOR,levels = c("PR","SD","PD"))
+nb_master_ndt<-nb_master_ndt[which(nb_master_ndt$patient %in% sanquin_pts),]
+
+f4i<-ggplot(nb_master_ndt,aes(x=tpos_cluster,y=deltaCCF,fill=tpos_cluster)) + geom_boxplot(outlier.shape = NA) + facet_wrap(~mean_CCF_group) +stat_compare_means(method = "t.test") + theme_pubclean() +theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),axis.ticks = element_blank()) + ylab("Delta CCF of Unscreened variants") + xlab("")
+f4i
+
+clonal<-nb_master_ndt[which(nb_master_ndt$mean_CCF_group=="MeanCCF>=50"),]
+subclonal<-nb_master_ndt[which(nb_master_ndt$mean_CCF_group=="MeanCCF<50"),]
+
+f4j<-ggplot(clonal,aes(x=tpos_cluster,y=deltaCCF,fill=tpos_cluster)) + geom_boxplot(outlier.shape = NA) + facet_wrap(~myBOR)+stat_compare_means(method = "t.test") + theme_pubclean() +theme(axis.text.x = element_text(angle = 90),axis.ticks = element_blank())+ ylab("Delta CCF of Unscreened variants") + xlab("")
+f4j
+
+
+```
+
+
