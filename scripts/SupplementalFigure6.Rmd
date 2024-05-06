@@ -1,0 +1,118 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-06-28"
+---
+
+```{r setup, include=FALSE}
+library(survminer)
+library(survival)
+library(dplyr)
+library(stringr)
+library(tidyverse)
+set.seed(7)
+```
+
+
+###           input: master 
+```{r input, echo=FALSE}
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+#master_file_ndt<-"master_NDT_VMResults_v2_CCFmean_duplicated.txt"
+master_file_ndt<-"master_NDT_VMResults_v2_CCFmean.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+master_ndt<-read.delim(paste0(data_dir,master_file_ndt),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/SupplementalFigure6/"
+```
+
+###           input: clinical response data
+```{r input2,echo=FALSE}
+clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
+clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
+clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"
+clinical_data_response$color<-NA
+clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"green"
+clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
+clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
+clinical_data_response$myBOR<-gsub("CR/PR","PR",clinical_data_response$myBOR)
+```
+
+```{r 6a, echo=FALSE,warning=FALSE}
+
+### get peptide data from master and merge to master_ndt
+mut_pep<-na.omit(master[,c("PT_MUT","PT_PEP")])
+master_ndt<-merge(master_ndt,mut_pep,by.x="PT_MUT",by.y="PT_MUT",all.x=TRUE)
+### get clusters with Tetramer+
+master_ndt$PT_cluster<-paste0(master_ndt$patient,"_",master_ndt$cluster)
+clusters_to_keep<-as.data.frame(table(master_ndt$PT_cluster,master_ndt$tetramer))
+clusters_to_keep<-clusters_to_keep[which(clusters_to_keep$Var2=="TETRAMER+"),]
+clusters_to_keep<-clusters_to_keep[which(clusters_to_keep$Freq >0),]
+### make a table of mutations that were immune affected
+muts_effect_table<-master_ndt[which(master_ndt$PT_cluster %in% clusters_to_keep$Var1),]
+muts_effect_table$delta_ccf<-muts_effect_table$ccf_on - muts_effect_table$ccf_pre
+muts_effect_table$immuneEffect<-"immune_resistant"
+muts_effect_table$immuneEffect[which(muts_effect_table$delta_ccf < 0)]<-"immune_affected"
+muts_effect_table<-unique(muts_effect_table)
+muts_effect_table<-muts_effect_table[!duplicated(muts_effect_table$PT_MUT),]
+
+
+muts<-as.data.frame(as.matrix(table(muts_effect_table$Hugo_Symbol,muts_effect_table$immuneEffect)))
+m1<-spread(muts,Var2,Freq)
+#m1<-m1[order(m1$immune_affected,decreasing = TRUE),]
+#m2<-m1[which(m1$immune_affected >0),]
+m2<-m1
+m2$Name<-m2$Var1
+m2$Name[which(m2$immune_affected<4 & m2$immune_resistant<2)]<-NA
+m2$mean_delta_ccf<-NA
+ids_1<-which(m2$immune_affected>=4)
+ids_2<-which(m2$immune_resistant>=2)
+
+for(i in 1:nrow(m2)){
+  m2$mean_delta_ccf[i]<-mean(muts_effect_table$delta_ccf[which(muts_effect_table$Hugo_Symbol==m2$Var1[i])])
+}
+m3<-m2[order(m2$mean_delta_ccf),]
+m3$rank<-seq(1:nrow(m3))
+m3$size<-NA
+for(i in 1:nrow(m3)){
+  if(m3$mean_delta_ccf[i]>0){
+    m3$size[i]<-m3$immune_resistant[i]
+  }else{
+    m3$size[i]<-m3$immune_affected[i]
+  }
+}
+
+library(ggpubr)
+library(ggrepel)
+#pdf(paste0(out_dir,"Supplemental6A.pdf"),height=10,width=20)
+ggplot(m3,aes(x=mean_delta_ccf,y=rank,label=Name)) + 
+  geom_point(color = "blue", size = m3$size) + 
+  geom_label_repel(aes(label = Name),box.padding   = 0.35, point.padding = 0.5,segment.color = 'grey50',size=5) +
+  theme_pubclean() +
+  geom_vline(xintercept = c(-0.10,0,0.10),linetype = "dashed", colour = "red") +
+  ylab("Rank") + xlab("Mean Delta CCF")+
+  theme( plot.title=element_text(size=16),
+         axis.text=element_text(size=16),
+         axis.title=element_text(size=16))
+  
+#dev.off()
+
+```
+
+```{r 6b, echo=FALSE,warning=FALSE}
+
+muts<-as.data.frame(as.matrix(table(muts_effect_table$Hugo_Symbol,muts_effect_table$immuneEffect)))
+m1<-spread(muts,Var2,Freq)
+m1<-m1[order(m1$immune_affected,decreasing = TRUE),]
+m2<-m1[which(m1$immune_affected >0),]
+m2$Name<-m2$Var1
+m2$Name[which(m2$immune_affected<4)]<-NA
+#pdf(paste0(out_dir,"Supplemental6B.pdf"),height=10,width=20)
+ggplot(m2,aes(x=Var1,y=immune_affected,label=Name)) + geom_point(color = "blue", size = 2) + 
+  geom_label_repel(aes(label = Name),box.padding   = 0.35, point.padding = 0.5, segment.color = 'grey50',size=5) +
+  theme_pubclean() +xlab("Gene") + ylab("Number of times a gene is identified in\n immune edited clone") +
+  theme( plot.title=element_text(size=16),axis.text.y=element_text(size=16),axis.text.x=element_blank(),axis.title=element_text(size=16))
+#dev.off()
+
+```
+
+

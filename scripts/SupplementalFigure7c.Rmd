@@ -1,0 +1,194 @@
+---
+title: "Untitled"
+output: html_document
+date: "2024-05-02"
+---
+```{r setup, include=FALSE}
+library(Peptides)
+library(gridExtra)
+library(grid)
+library(dplyr)
+library(ggplot2)
+library(reshape)
+library(ComplexHeatmap)
+library(tidyverse)
+library(viridis)
+library(ggpubr)
+library(motifStack)
+library(pheatmap)
+set.seed(7)
+```
+
+```{r}
+
+data("AAdata") ## load amino acids from Peptides package
+
+aa = names(AAdata$Hydrophobicity$Kidera) ## 20 amino acids
+
+## one-hot encode peptide sequence
+## for a given peptide, this will return a data frame of dimensions 1 X 180 (assuming the peptide is a 9mer)
+## each column of the encoding is a particular amino acid at a particular position (1 if present, 0 if not)
+peptide_encode = function(peptide){
+  x = unlist(strsplit(peptide, ""))
+  
+  d = as.data.frame("dummy")
+  colnames(d)[1] = "dummy"
+  
+  for(i in seq(length(x))){
+    # print(i)
+    x2 = as.data.frame(t(as.integer(aa %in% x[i])))
+    colnames(x2) = aa
+    colnames(x2) = paste(paste(paste("P", i, sep = ""), colnames(x2), sep = "_"))
+    d = cbind(d,x2)
+  }
+  d = d[,2:ncol(d)]
+  return(d)
+}
+
+## example
+ex = peptide_encode("IVTDFSVIK")
+
+## now run peptide_encode on all of your peptides to generate a matrix of encodings
+## some pseudo-code to do this:
+### Master data frame
+#master<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/createMaster/data/PAIRED_MASTER_all_sanquin_peptides_July28_NoNA_ccf.txt",header = TRUE, sep = "\t")
+master<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/createMaster/data/PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff.txt",header = TRUE, sep = "\t")
+#master<-master[which(master$HLA=="HLA-A*02:01"),]
+master<-master[which(master$Pep_Length==9),]
+#master<-master[which(master$Variant_Type=="SNP"),]
+peptides_sequence<-master$MT.Peptide.x
+
+### creating logo plots 
+pos_peptides<-master$MT.Peptide.x[which(master$tetramer=="TETRAMER+")]
+neg_peptides<-master$MT.Peptide.x[which(master$tetramer=="TETRAMER-")]
+
+bigmat = data.frame()
+for(i in peptides_sequence){
+  pe = peptide_encode(i)
+  bigmat = rbind(bigmat, pe)
+}
+
+## now add the 1s or 0s (representing tetramer positive/negative) to the matrix for each peptide you just encoded
+## make sure the 1s/0s are in the same order as the peptides in the matrix!
+
+bigmat$tet_pos_or_neg = master$tetramer
+bigmat<-na.omit(bigmat)
+bigmat$tet_pos_or_neg = ifelse(bigmat$tet_pos_or_neg=="TETRAMER+",1,0)
+
+bigmat$tet_pos_or_neg<-as.factor(bigmat$tet_pos_or_neg)
+
+
+bigmat_tet_pos<-bigmat[which(bigmat$tet_pos_or_neg==1),]
+bigmat_tet_neg<-bigmat[which(bigmat$tet_pos_or_neg==0),]
+bigmat_pos2<-melt(bigmat_tet_pos[1:180])
+bigmat_neg2<-melt(bigmat_tet_neg[1:180])
+
+bigmat_sum_pos<-data.frame(matrix(nrow=180, ncol=2))
+colnames(bigmat_sum_pos)<-c("position","value")
+bigmat_sum_pos$position<-unique(bigmat_pos2$variable)
+for(i in unique(bigmat_pos2$variable)){
+  pos<-sum(bigmat_pos2$value[which(bigmat_pos2$variable==i)])
+  bigmat_sum_pos$value[which(bigmat_sum_pos$position==i)]<-pos
+}
+
+bigmat_sum_neg<-data.frame(matrix(nrow=180, ncol=2))
+colnames(bigmat_sum_neg)<-c("position","value")
+bigmat_sum_neg$position<-unique(bigmat_neg2$variable)
+for(i in unique(bigmat_neg2$variable)){
+  pos<-sum(bigmat_neg2$value[which(bigmat_neg2$variable==i)])
+  bigmat_sum_neg$value[which(bigmat_sum_neg$position==i)]<-pos
+}
+
+bigmat_sum1 <- data.frame(position=bigmat_sum_pos$position,value=as.numeric(bigmat_sum_pos$value/171))##(0.00000,0.00243)
+bigmat_sum1$amino_acid<-str_split_fixed(bigmat_sum1$position,"_",2)[,2]
+bigmat_sum1$pos<-str_split_fixed(bigmat_sum1$position,"_",2)[,1]
+bigmat_sum1<-bigmat_sum1[,2:4]
+
+bigmat_sum2 <- data.frame(position=bigmat_sum_neg$position,value=as.numeric(bigmat_sum_neg$value/266))##(0.00000,0.00000)
+bigmat_sum2$amino_acid<-str_split_fixed(bigmat_sum2$position,"_",2)[,2]
+bigmat_sum2$pos<-str_split_fixed(bigmat_sum2$position,"_",2)[,1]
+bigmat_sum2<-bigmat_sum2[,2:4]
+
+bigmat_sum <- data.frame(position=bigmat_sum_pos$position,value=as.numeric(((bigmat_sum_pos$value/171))/((bigmat_sum_neg$value/266))))
+bigmat_sum$value<-gsub("NaN",0,bigmat_sum$value)
+bigmat_sum$value<-gsub("Inf",4,bigmat_sum$value)
+bigmat_sum$amino_acid<-str_split_fixed(bigmat_sum$position,"_",2)[,2]
+bigmat_sum$pos<-str_split_fixed(bigmat_sum$position,"_",2)[,1]
+bigmat_sum<-bigmat_sum[,2:4]
+
+heatmap_df1<-spread(bigmat_sum1,key=pos,value=value)
+heatmap_df2<-spread(bigmat_sum2,key=pos,value=value)
+heatmap_df<-spread(bigmat_sum,key=pos,value=value)
+
+rownames(heatmap_df1)<-heatmap_df1$amino_acid
+heatmap_df1<-heatmap_df1[,2:10]
+heatmap_df1[,1:9]<-lapply(heatmap_df1[,1:9],as.numeric)
+cols<-c("white","#B3CDE3","#8C96C6","#8856A7","#810F7C")
+#cols<-colorRampPalette((c("white","#8C96C6", "#810F7C")))(5)
+#cols<-c("#FDE725FF","#DCE319FF","white","#8856A7","#810F7C")
+pheatmap::pheatmap(heatmap_df1, cluster_cols = FALSE, scale = "none",color =cols)
+
+motif_df1<-data.matrix(heatmap_df1)
+motif_df1<-pcm2pfm(motif_df1)
+motif1<-new("pfm", mat=motif_df1, name="CAP",
+           color=colorset(alphabet="AA",colorScheme="chemistry"))
+plot(motif1,ic.scale=FALSE)
+
+rownames(heatmap_df2)<-heatmap_df2$amino_acid
+heatmap_df2<-heatmap_df2[,2:10]
+heatmap_df2[,1:9]<-lapply(heatmap_df2[,1:9],as.numeric)
+cols<-c("white","#B3CDE3","#8C96C6","#8856A7","#810F7C")
+#cols<-c("#FDE725FF","#DCE319FF","white","#8856A7","#810F7C")
+pheatmap::pheatmap(heatmap_df2, cluster_cols = FALSE, scale = "none",color =cols)
+
+motif_df2<-data.matrix(heatmap_df2)
+motif_df2<-pcm2pfm(motif_df2)
+motif2<-new("pfm", mat=motif_df2, name="CAP",
+           color=colorset(alphabet="AA",colorScheme="chemistry"))
+plot(motif2,ic.scale=FALSE)
+
+
+rownames(heatmap_df)<-heatmap_df$amino_acid
+heatmap_df<-heatmap_df[,2:10]
+heatmap_df[,1:9]<-lapply(heatmap_df[,1:9],as.numeric)
+cols<-c("#FDE725FF","#DCE319FF","white","#8856A7","#810F7C")
+#cols<-colorRampPalette((c("#FDE725FF", "white", "#810F7C")))(5)
+pheatmap::pheatmap(heatmap_df, cluster_cols = FALSE, scale = "column",color =cols)
+
+motif_df<-data.matrix(heatmap_df)
+motif_df<-pcm2pfm(motif_df)
+motif<-new("pfm", mat=motif_df, name="CAP",
+           color=colorset(alphabet="AA",colorScheme="chemistry"))
+plot(motif,ic.scale=FALSE)
+
+
+
+# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/motif_tet+_allHLA_2cell.pdf", onefile = TRUE,width=6,height=3)
+# plot(motif1,ic.scale=FALSE)
+# dev.off()
+# 
+# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/heatmap_tet+_allHLA_2cell_1.pdf",width=6,height=8)
+# print(p1)
+# dev.off()
+# 
+# 
+# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/motif_tet-_allHLA_2cell.pdf", onefile = TRUE,width=6,height=3)
+# plot(motif2,ic.scale=FALSE,)
+# dev.off()
+# 
+# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/heatmap_tet-_allHLA_2cell_1.pdf",width=6,height=8)
+# print(p2)
+# dev.off()
+# 
+# 
+# 
+# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/motif_allHLA_2cell.pdf", onefile = TRUE,width=6,height=3)
+# plot(motif,ic.scale=FALSE,)
+# dev.off()
+# 
+# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/heatmap_allHLA_2cell.pdf",width=6,height=8)
+# print(p3)
+# dev.off()
+# 
+```
+

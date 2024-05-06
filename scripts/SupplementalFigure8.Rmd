@@ -1,0 +1,258 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-07-05"
+---
+
+```{r setup, include=FALSE, warning=FALSE}
+library(glmnet)
+library(CrossValidate)
+library(caret)
+library(mltools)
+library(data.table)
+library(precrec)
+library(subSeq)
+library(ggpubr)
+library(dplyr)
+
+```
+
+```{r input, echo=FALSE, warning=FALSE}
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master_file_ndt<-"master_NDT_VMResults_v2_CCFmean_duplicated.txt"
+master_file_ndt<-"master_NDT_VMResults_v2_CCFmean.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+master_ndt<-read.delim(paste0(data_dir,master_file_ndt),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/model_bootstrap70/supp8/"
+```
+
+```{r input2,echo=FALSE, warning=FALSE}
+clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
+clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
+clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"
+clinical_data_response$color<-NA
+clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"green"
+clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
+clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
+clinical_data_response$myBOR<-gsub("CR/PR","PR",clinical_data_response$myBOR)
+```
+
+
+```{r FigC, echo=FALSE, warning=FALSE}
+
+FeatureRank<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/feature_rank_A0201_tt.txt",header = TRUE,sep="\t")
+
+AAindexRank<-FeatureRank[which(startsWith(FeatureRank$feature,"SeqPos")),]
+
+AAindexRank$FeaturePos<-as.factor(substr(AAindexRank$feature, start=1, stop=8))
+AAindexRankv2<-AAindexRank
+
+AAindexRankv2 <- arrange(AAindexRankv2, desc(MIC.value)) %>%
+          mutate(rank = 1:nrow(AAindexRankv2))
+
+
+rnkplot2<-ggplot(AAindexRankv2, aes(x=MIC.value, y=rank))+
+  geom_point()+
+  theme_bw()+
+  theme(plot.margin = unit(c(1,1,1,1), "cm"))
+#pdf(paste0(out_dir,"SupplementalFigureC1.pdf"),height=8,width=5)
+print(rnkplot2)
+#dev.off()
+
+aa1_100<-ggplot(data=AAindexRankv2, aes(x=rank)) + 
+  xlim(0, 100)+
+  geom_histogram(binwidth=10, color="black", aes(fill=FeaturePos)) + 
+  xlab("rank") + 
+  ylab("Frequency") + 
+  ggtitle("Histogram")+
+  theme_classic()
+#pdf(paste0(out_dir,"SupplementalFigureC2.pdf"),height = 5, width=5)
+print(aa1_100)
+#dev.off()
+
+aa2000_2100<-ggplot(data=AAindexRankv2, aes(x=rank)) + 
+  xlim(2000, 2100)+
+  geom_histogram(binwidth=10, color="black", aes(fill=FeaturePos)) + 
+  xlab("rank") + 
+  ylab("Frequency") + 
+  ggtitle("Histogram")+
+  theme_classic()
+#pdf(paste0(out_dir,"SupplementalFigureC3.pdf"),height = 5, width=5)
+print(aa2000_2100)
+#dev.off()
+
+aa4679_4779<-ggplot(data=AAindexRankv2, aes(x=rank)) + 
+  xlim(4679, 4779)+
+  geom_histogram(binwidth=10, color="black", aes(fill=FeaturePos)) + 
+  xlab("rank") + 
+  ylab("Frequency") + 
+  ggtitle("Histogram")+
+  theme_classic()
+#pdf(paste0(out_dir,"SupplementalFigureC4.pdf"),height = 5, width=5)
+print(aa4679_4779)
+#dev.off()
+
+```
+
+```{r FigD, echo=FALSE, warning=FALSE}
+
+
+AAindexFull<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/AAIndex.txt", sep="\t", header=T, row.names = 1)
+tetposneg<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/label_A0201_tt.txt", sep="\t", header=F)
+colnames(tetposneg)<-c("peptidePatient", "TetStatus")
+mergedTable<-merge(AAindexFull, tetposneg, by.x=0, by.y="peptidePatient")
+mergedTable$Tetramer<-ifelse(mergedTable$TetStatus==1, "Positive", "Negative")
+
+mergedTable$Tetramer<-as.factor(mergedTable$Tetramer)
+row.names(mergedTable)<-mergedTable$Row.names
+mergedTable<- mergedTable %>% arrange(Tetramer)
+
+#pheatmap(mv2, scale="column",cluster_rows = TRUE, annotation_row = mergedTable["Tetramer"])
+AAindexNames<-colnames(AAindexFull)
+tablePos<-subset(mergedTable, Tetramer=="Positive")
+tableNeg<-subset(mergedTable, Tetramer=="Negative")
+
+AAindexRankv2<-AAindexRank
+row.names(AAindexRankv2)<-AAindexRankv2$feature
+for (i in AAindexRank$feature){
+  t1<-wilcox.test(x=tablePos[[i]], y=tableNeg[[i]])
+  AAindexRankv2[i,"wilcoxpval"]<-t1$p.value
+}
+
+AAindexRankv2$wilcoxpval[is.na(AAindexRankv2$wilcoxpval)] <- 1
+AAindexRankv2$sigGroup<-ifelse(AAindexRankv2$wilcoxpval < 0.01, "signif", "nonSignif")
+AAindexRankv2$sigGroup<-as.factor(AAindexRankv2$sigGroup)
+table(is.na(AAindexRankv2$wilcoxpval))
+
+univarAnalysis<-ggplot(AAindexRankv2, aes(x=sigGroup, fill=FeaturePos))+
+  geom_bar(position = "fill")+
+  theme_classic()+
+  theme(plot.margin = unit(c(1,1,1,1), "cm"))
+#pdf(paste0(out_dir,"SupplementalFigureD.pdf"))
+print(univarAnalysis)
+#dev.off()
+
+```
+
+## Figure E
+```{r figure E, echo=FALSE, warning=FALSE}
+
+table(master$tetramer_ml)
+table(master$tetramer)
+x=20
+master$tetramer_20cell<-ifelse(master$AbsoluteSum > x, "TETRAMER+","TETRAMER-")
+table(master$tetramer_20cell)
+### reduce master to A0201, 9mer peptides
+s_master<-master[which(!is.na(master$Binder)),c("patient","PT_MUT","PT_PEP","MT.Allele","tetramer","tetramer_20cell","tetramer_ml","Binder","myBOR","MT.Score","Pep_Length","AbsoluteSum")]
+s_master_a0201<-s_master[which(s_master$MT.Allele=="A0201"),]
+s_master_a0201<-s_master_a0201[which(s_master_a0201$Pep_Length == 9),]
+aaindex_file<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/TTN/all/output/AAINDEX.txt"
+
+aaindex_df<-read.delim(aaindex_file,header=TRUE, sep="\t")
+aaindex_feature<-aaindex_df[,c("X.","SeqPos.4.JOND920102")]
+s_master_a0201<-unique(merge(s_master_a0201, aaindex_feature,by.x="PT_PEP",by.y="X.",all.x = TRUE ))
+feature<-"SeqPos.4.JOND920102"
+
+ss_master<-s_master_a0201[which(!is.na(s_master_a0201$tetramer)),]
+# ggplot(ss_master, aes(x=tetramer,y=SeqPos.4.JOND920102, fill=tetramer)) + geom_boxplot() + stat_compare_means() +theme_pubr()
+# ggplot(ss_master, aes(x=tetramer_ml,y=SeqPos.4.JOND920102, fill=tetramer_ml)) + geom_boxplot() + stat_compare_means()+theme_pubr()
+#pdf(paste0(out_dir,"SupplementaFigureE.pdf"),height=4,width=4)
+ggplot(ss_master, aes(x=tetramer_20cell,y=SeqPos.4.JOND920102, fill=tetramer_20cell)) + geom_boxplot() + stat_compare_means()+theme_pubr()
+#dev.off()
+```
+
+## Figure G
+```{r figure G, echo=FALSE, warning=FALSE}
+s_master_a0201$tetramer_20cell[which(is.na(s_master_a0201$tetramer_20cell))]<-"NON_BINDER"
+s_master_a0201$tetramer_ml[which(is.na(s_master_a0201$tetramer_ml))]<-"NON_BINDER"
+s_master_a0201$tetramer[which(is.na(s_master_a0201$tetramer))]<-"NON_BINDER"
+my_comparisons<-list(c("TETRAMER+","TETRAMER-"),c("TETRAMER+","NON_BINDER"),c("TETRAMER-","NON_BINDER"))
+
+# ggplot(s_master_a0201, aes(x=tetramer,y=SeqPos.4.JOND920102, fill=tetramer)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
+
+#pdf(paste0(out_dir,"SupplementalFigureG.pdf"),height=4, width = 4)
+ggplot(s_master_a0201, aes(x=tetramer_ml,y=SeqPos.4.JOND920102, fill=tetramer_ml)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
+#dev.off()
+
+# ggplot(s_master_a0201, aes(x=tetramer_20cell,y=SeqPos.4.JOND920102, fill=tetramer_20cell)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
+
+
+```
+
+
+## Figure H
+```{r Figure H, echo=FALSE, warning=FALSE}
+s_master_a0201<-s_master_a0201[which(s_master_a0201$Pep_Length == 9),]
+# ggplot(s_master_a0201, aes(x=tetramer,y=MT.Score, fill=tetramer)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
+#pdf(paste0(out_dir,"SupplementalFigureH.pdf"),height = 4,width = 4)
+ggplot(s_master_a0201, aes(x=tetramer_ml,y=MT.Score, fill=tetramer_ml)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
+#dev.off()
+# ggplot(s_master_a0201, aes(x=tetramer_20cell,y=MT.Score, fill=tetramer_20cell)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
+
+
+```
+
+
+```{r J2_continuous, echo=FALSE, warning=FALSE}
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+x=20
+master$tetramer_20cell<-ifelse(master$AbsoluteSum > x, "TETRAMER+","TETRAMER-")
+s_master<-master[which(!is.na(master$Binder)),c("patient","PT_MUT","PT_PEP","MT.Allele","tetramer","tetramer_20cell","tetramer_ml","Binder","myBOR","MT.Score","Pep_Length","AbsoluteSum")]
+
+s_master_a0201<-s_master[which(s_master$MT.Allele=="A0201"),]
+s_master_a0201<-s_master_a0201[which(s_master_a0201$Pep_Length == 9),]
+
+aaindex_file<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/TTN/all/output/AAINDEX.txt"
+
+aaindex_df<-read.delim(aaindex_file,header=TRUE, sep="\t")
+aaindex_feature<-aaindex_df[,c("X.","SeqPos.4.JOND920102")]
+s_master_a0201<-unique(merge(s_master_a0201, aaindex_feature,by.x="PT_PEP",by.y="X.",all.x = TRUE ))
+#set.seed(4151)
+## Get all data 1253 
+## with AA index for feature and MT scores for only A0201 peptides
+s_master_a0201_na<-s_master_a0201[which(is.na(s_master_a0201$AbsoluteSum)),]
+s_master_a0201_na$tetramer_ml<-"NON_BINDER"
+s_master_a0201_na$tetramer<-"NON_BINDER"
+s_master_a0201_na$tetramer_20cell<-"NON_BINDER"
+s_master_a0201_df<-s_master_a0201[which(!is.na(s_master_a0201$AbsoluteSum)),]
+s_master_a0201_df$AbsoluteSum<-log2((s_master_a0201_df$AbsoluteSum+1))
+
+
+s_master_ml<-s_master_a0201_df[,c("MT.Score","SeqPos.4.JOND920102","AbsoluteSum", "tetramer_ml","tetramer","tetramer_20cell")]
+
+s_master_ml<-na.omit(s_master_ml)
+## 60/40 split balanced - 
+library(CrossValidate)
+set.seed(412)
+train_test_split <- balancedSplit(as.factor(s_master_ml$tetramer_20cell),0.6)
+#train_test_split = sort(sample(nrow(s_master_ml), nrow(s_master_ml)*.6))
+training_data <- s_master_ml[train_test_split,]
+test_data <- s_master_ml[!train_test_split,]
+
+
+c_data<-rbind(test_data,s_master_a0201_na[,c("MT.Score","SeqPos.4.JOND920102","AbsoluteSum", "tetramer_ml","tetramer","tetramer_20cell")])
+
+## scale data
+training_data[, 1:2] = scale(training_data[, 1:2])
+c_data[, 1:2] = scale(c_data[, 1:2])
+
+training_cols=3
+fit1<-glm(AbsoluteSum ~ .,data=training_data[1:3], family = quasipoisson)
+fit1
+#score<-predict(fit, newx = as.matrix(test_data[,c(seq(training_cols-1))]),type="response",s=fit$lambda.min)
+score<-predict(fit1,newdata=c_data[1:2], type="response")
+c_data$scores<-score
+
+## use scores to plot NB,T+,T-
+my_comparisons<-list(c("TETRAMER+","TETRAMER-"),c("TETRAMER+","NON_BINDER"),c("TETRAMER-","NON_BINDER"))
+
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/SupplementalFigure8/May/"
+pdf(paste0(out_dir,"SupplementalFigureJ2.pdf"),height=5,width=5)
+ggplot(c_data, aes(x=tetramer_ml,y=scores, fill=tetramer_ml)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons,size = 5)+theme_pubr() +xlab("")+ylab("Prediction Scores") + theme(legend.position = "none") 
+dev.off()
+
+
+```

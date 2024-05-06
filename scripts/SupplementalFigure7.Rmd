@@ -1,0 +1,94 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-06-28"
+---
+
+```{r setup, include=FALSE}
+library(survminer)
+library(survival)
+library(dplyr)
+library(stringr)
+library(tidyverse)
+library(assertthat)
+set.seed(7)
+```
+
+
+###           input: master 
+```{r input, echo=FALSE}
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/SupplementalFigure7/"
+```
+
+###           input: clinical response data
+```{r input2,echo=FALSE}
+clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
+clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
+clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"
+clinical_data_response$color<-NA
+clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"green"
+clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
+clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
+clinical_data_response$myBOR<-gsub("CR/PR","PR",clinical_data_response$myBOR)
+```
+
+```{r}
+## choosing 9mers
+master<-master[which(master$Pep_Length==9),]
+
+hydrophicAA<-c("A", "M", "Y", "V", "I", "L", "F", "W")
+master$numberHydrophicRes<-str_count(master$MT.Peptide.x, paste(hydrophicAA, collapse='|'))
+master$fractionHydrophic<-master$numberHydrophicRes/master$Pep_Length
+
+aromaticAA<-c("F", "W", "Y")
+master$numberAromaticRes<-str_count(master$MT.Peptide.x, paste(aromaticAA, collapse='|'))
+master$fractionAromatic<-master$numberAromaticRes/master$Pep_Length
+
+master$positionDifference<-ifelse(master$PEP_MUT_POS %in% c(1,2,9),0,1)
+
+master$agretopicity<-master$MT.Score/master$WT.Score
+
+s_master<-master[,c("PT_PEP","MT.Score","WT.Score","fractionHydrophic","fractionAromatic","agretopicity","Binder","tetramer","PT_MUT","MT.Allele")]
+
+a0201<-s_master[which(s_master$MT.Allele=="A0201"),]
+
+### calculate grantham's distance
+
+
+### plot 
+
+ggplot(s_master, aes(x=Binder,y=MT.Score, fill=Binder)) + geom_violin() +geom_boxplot(width=0.1)+stat_compare_means() + theme_pubclean() + scale_fill_manual(values=c("pink","aquamarine"))
+
+ggplot(s_master, aes(x=Binder,y=fractionHydrophic, fill=Binder)) + geom_violin() +geom_boxplot(width=0.1)+stat_compare_means() + theme_pubclean() + scale_fill_manual(values=c("pink","aquamarine"))
+
+ggplot(s_master, aes(x=Binder,y=fractionAromatic, fill=Binder)) + geom_violin() +geom_boxplot(width=0.1)+stat_compare_means() + theme_pubclean() + scale_fill_manual(values=c("pink","aquamarine"))
+
+ggplot(s_master, aes(x=Binder,y=agretopicity, fill=Binder)) + geom_violin() +geom_boxplot(width=0.1)+stat_compare_means() + theme_pubclean() + scale_fill_manual(values=c("pink","aquamarine")) +ylim(0,10)
+#################
+
+
+
+```
+
+```{r}
+s_master<-s_master[which(!is.na(s_master$tetramer)),]
+a0201<-a0201[which(!is.na(a0201$tetramer)),]
+ggplot(s_master, aes(x=tetramer,y=MT.Score, fill=tetramer)) + geom_violin() +geom_boxplot(width=0.1)+stat_compare_means() + theme_pubclean() + scale_fill_manual(values=c("green2","blue2"))
+
+ggplot(s_master, aes(x=tetramer,y=fractionHydrophic, fill=tetramer)) + geom_violin() +geom_boxplot(width=0.1)+stat_compare_means() + theme_pubclean() + scale_fill_manual(values=c("green2","blue2"))
+
+ggplot(s_master, aes(x=tetramer,y=fractionAromatic, fill=tetramer)) + geom_violin() +geom_boxplot(width=0.1)+stat_compare_means() + theme_pubclean() + scale_fill_manual(values=c("green2","blue2"))
+
+ggplot(s_master, aes(x=tetramer,y=agretopicity, fill=tetramer)) + geom_violin() +geom_boxplot(width=0.1)+stat_compare_means() + theme_pubclean() + scale_fill_manual(values=c("green2","blue2")) + ylim(0,10)
+#################
+
+```
+
+
+
+
+
+

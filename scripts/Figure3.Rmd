@@ -96,15 +96,21 @@ ggplot(anno_df_4,aes(x=Patient,y=percent_immuno1)) + geom_bar(stat = "identity",
 ```{r 3DF, echo=FALSE}
 master<-master[which(!is.na(master$Pep_Length)),]
 master$percent_log_fold_change<-log2((master$OnRx1+master$OnRx2+0.01)/(master$PreRx+0.01))
+check<-na.omit(master[,c("AbsoluteSum","percent_log_fold_change","PreRx","OnRx1","OnRx2","tetramer")])
 
 master$increaseTcell <- NA
-master$increaseTcell <- ifelse(master$percent_log_fold_change > 0, "increase","decrease")
+master$increaseTcell <- ifelse(master$percent_log_fold_change > 0.01, "increase","decrease")
 master$ccf_change<-master$ccf_on-master$ccf_pre
 
 master_plot1_1<-master[which(!is.na(master$increaseTcell)),]
 master_plot2<-master_plot1_1[which(master_plot1_1$tetramer == "TETRAMER+"),]
 ggplot(master_plot2, aes(x=increaseTcell,fill=increaseTcell)) + geom_bar()  + theme_pubclean() + labs(y=" Count of tetramer+ peptides", x="T cells")+scale_fill_manual(values=c("khaki1", "hotpink1"))
-ggplot(master_plot2, aes(x=increaseTcell, y=ccf_change, fill=increaseTcell)) + geom_boxplot() +stat_compare_means(method = "t.test") + theme_pubclean() + labs(y=" Delta CCF", x="T cells")+scale_fill_manual(values=c("khaki1", "hotpink1"))
+p2<-ggplot(master_plot2, aes(x=increaseTcell, y=ccf_change, fill=increaseTcell)) + geom_boxplot() +stat_compare_means(method = "t.test") + theme_pubclean() + labs(y=" Delta CCF", x="T cells")+scale_fill_manual(values=c("khaki1", "hotpink1"))
+p2
+# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/May/Figure3F_tetramerPos.pdf",height=4,width=5)
+# print(p2)
+# dev.off()
+
 
 ```
 

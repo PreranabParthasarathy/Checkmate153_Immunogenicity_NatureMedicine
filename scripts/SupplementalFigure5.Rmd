@@ -1,0 +1,266 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-06-23"
+---
+
+```{r setup, include=FALSE}
+library(survminer)
+library(survival)
+library(dplyr)
+library(stringr)
+library(tidyverse)
+set.seed(7)
+```
+
+## Supplemental Figure 5 : 
+###           input: master 
+
+
+```{r input, echo=FALSE}
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master_ndt_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+master_ndt<-read.delim(paste0(data_dir,master_ndt_file),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/SupplementalFigure5/May/"
+```
+
+###           input: clinical response data
+```{r input2, echo=FALSE}
+clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
+clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
+clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"
+clinical_data_response$color<-NA
+clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"green"
+clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
+clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
+```
+
+
+
+```{r A, echo=FALSE}
+### Percent Binder
+s_master<-master[which(!is.na(master$Binder)),]
+num_binder<-as.data.frame(table(s_master$patient,s_master$Binder))
+num_vars<-as.data.frame(table(s_master$patient))
+
+num_binder<-num_binder[which(num_binder$Var2=="REAL_BINDER" & num_binder$Freq > 0),]
+num_vars<-num_vars[which(num_vars$Var1 %in% num_binder$Var1),]
+
+colnames(num_binder)<-c("patient","class","BindersFreq")
+colnames(num_vars)<-c("patient","VariantFreq")
+
+num_df<-merge(num_binder, num_vars, by.x = "patient",by.y = "patient", all.x=TRUE)
+num_df$percentBinder<-(num_df$BindersFreq/num_df$VariantFreq)*100
+num_df<-merge(num_df,clinical_data_response,by.x = "patient",by.y="PatientID", all.x=TRUE)
+num_df$myBOR<-factor(num_df$myBOR, levels=c("CR/PR","SD","PD"))
+my_comparisons<-list(c("CR/PR","SD"),c("CR/PR","PD"),c("SD","PD"))
+A<-ggplot(num_df,aes(x=myBOR, y=percentBinder, fill=myBOR)) + geom_boxplot() +theme_pubr() + scale_fill_manual(values=c("green", "orange","red")) + stat_compare_means(comparison=my_comparisons,label="p.format",method="wilcox.test")
+A
+
+# pdf(paste0(out_dir,"Supplemental5A.pdf"), height=5, width=5)
+# print(A)
+# dev.off()
+
+
+
+```
+
+```{r B, echo=FALSE}
+# master_ndt$DeltaCCF<-master_ndt$ccf_on - master_ndt$ccf_pre
+# s_master_ndt<-master_ndt[which(!is.na(master_ndt$Binder)),]
+# s_master_ndt$pre_clonal<-ifelse(s_master_ndt$ccf_pre >= 0.95, "clonal","subclonal")
+# s_master_ndt$response<-ifelse(s_master_ndt$myBOR %in% c("PR","SD"),"Responder","Non-Responder")
+# B1<-ggplot(s_master_ndt, aes(x=Binder, y=DeltaCCF, fill=Binder)) + geom_boxplot() + theme_pubclean() + stat_compare_means(method="t.test") + scale_fill_manual(values=c("pink","aquamarine"))
+# B1
+
+master$DeltaCCF<-master$ccf_on - master$ccf_pre
+s_master<-master[which(!is.na(master$Binder)),]
+s_master$response<-ifelse(s_master$myBOR %in% c("PR","SD"),"Responder","Non-Responder")
+B2<-ggplot(s_master, aes(x=Binder, y=DeltaCCF, fill=Binder)) + geom_boxplot() + theme_pubclean() + stat_compare_means(method="t.test") + scale_fill_manual(values=c("pink","aquamarine"))
+B2
+
+```
+
+
+```{r CDplot, echo=FALSE}
+
+# C1<-ggplot(s_master_ndt, aes(x=Binder, y=DeltaCCF, fill=Binder)) + geom_boxplot() + theme_pubclean() + stat_compare_means(method="t.test") + scale_fill_manual(values=c("pink","aquamarine")) + facet_wrap(~pre_clonal)
+# C1
+
+C2<-ggplot(s_master, aes(x=Binder, y=DeltaCCF, fill=Binder)) + geom_boxplot() + theme_pubclean() + stat_compare_means(method="t.test") + scale_fill_manual(values=c("pink","aquamarine")) + facet_wrap(~pre_clonal)
+C2
+
+
+# pdf(paste0(out_dir,"Supplemental5C_ndt.pdf"), height=4, width=4)
+# print(C1)
+# dev.off()
+
+# pdf(paste0(out_dir,"Supplemental5C_calculated.pdf"), height=4, width=4)
+# print(C2)
+# dev.off()
+
+# D1<-ggplot(s_master_ndt, aes(x=Binder, y=DeltaCCF, fill=Binder)) + geom_boxplot() + theme_pubclean() + stat_compare_means(method="t.test") + scale_fill_manual(values=c("pink","aquamarine")) + facet_wrap(~response)
+# D1
+
+D2<-ggplot(s_master, aes(x=Binder, y=DeltaCCF, fill=Binder)) + geom_boxplot() + theme_pubclean() + stat_compare_means(method="t.test") + scale_fill_manual(values=c("pink","aquamarine")) + facet_wrap(~response)
+D2
+
+
+# pdf(paste0(out_dir,"Supplemental5D_ndt.pdf"), height=4, width=4)
+# print(D1)
+# dev.off()
+# 
+# pdf(paste0(out_dir,"Supplemental5D_calculated.pdf"), height=4, width=4)
+# print(D2)
+# dev.off()
+
+```
+
+```{r E, echo=FALSE}
+### Percent Binder
+s_master<-master[which(!is.na(master$tetramer)),]
+num_tetramer<-as.data.frame(table(s_master$patient,s_master$tetramer))
+num_vars<-as.data.frame(table(s_master$patient))
+
+num_tetramer<-num_tetramer[which(num_tetramer$Var2=="TETRAMER+" & num_tetramer$Freq > 0),]
+num_vars<-num_vars[which(num_vars$Var1 %in% num_tetramer$Var1),]
+
+colnames(num_tetramer)<-c("patient","class","TetramerFreq")
+colnames(num_vars)<-c("patient","VariantFreq")
+
+num_df<-merge(num_tetramer, num_vars, by.x = "patient",by.y = "patient", all.x=TRUE)
+num_df$percentTetramer<-(num_df$TetramerFreq/num_df$VariantFreq)*100
+num_df<-merge(num_df,clinical_data_response,by.x = "patient",by.y="PatientID", all.x=TRUE)
+num_df$myBOR<-factor(num_df$myBOR, levels=c("CR/PR","SD","PD"))
+my_comparisons<-list(c("CR/PR","SD"),c("CR/PR","PD"),c("SD","PD"))
+E<-ggplot(num_df,aes(x=myBOR, y=percentTetramer, fill=myBOR)) + geom_boxplot() +theme_pubr() + scale_fill_manual(values=c("green", "orange","red")) + stat_compare_means(comparison=my_comparisons,label="p.format",method="wilcox.test")
+#pdf(paste0(out_dir,"Supplemental5E.pdf"), height=5, width=5)
+print(E)
+#dev.off()
+
+```
+
+
+```{r F, echo=FALSE}
+
+master_ndt$percent_log_fold_change<-log2((master_ndt$OnRx1+master_ndt$OnRx2+0.01)/(master_ndt$PreRx+0.01))
+
+master_ndt$increaseTcell <- NA
+master_ndt$increaseTcell <- ifelse(master_ndt$percent_log_fold_change > 0.01, "Increase","Decrease")
+master_ndt$ccf_change<-master_ndt$ccf_on-master_ndt$ccf_pre
+master_ndt$pre_clonal<-ifelse(master_ndt$ccf_pre >= 0.95, "clonal","subclonal")
+
+master_plot1<-master_ndt[which(!is.na(master_ndt$increaseTcell)),]
+master_plot2<-master_plot1[which(master_plot1$tetramer == "TETRAMER+"),]
+
+f<-ggplot(master_plot2, aes(x=increaseTcell, y=ccf_change, fill=increaseTcell)) + geom_boxplot() +stat_compare_means(method = "t.test") + theme_pubclean() + labs(y=" Delta CCF", x="T cells")+scale_fill_manual(values=c("khaki1", "hotpink1")) + facet_wrap(~pre_clonal)
+
+f
+
+# pdf(paste0(out_dir,"Supplemental5F_tetramerPos.pdf"), height=4, width=4)
+# print(f)
+# dev.off()
+```
+
+
+```{r G, echo=FALSE}
+
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master_ndt_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+master_ndt<-read.delim(paste0(data_dir,master_ndt_file),sep="\t",header=TRUE)
+out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/SupplementalFigure5/"
+sanquin_pts<-unique(master$patient[which(!is.na(master$Binder))])
+
+master_ndt$pt_cluster<-paste0(master_ndt$patient,"_",master_ndt$cluster)
+mean_pre<-aggregate(master_ndt$ccf_pre, list(master_ndt$pt_cluster), mean)
+colnames(mean_pre)<-c("pt_cluster","meanCCF")
+master_ndt<-merge(master_ndt,mean_pre,by.x = "pt_cluster",by.y="pt_cluster",all.x=T)
+master_ndt$mean_CCF_group<-ifelse(master_ndt$meanCCF >= 0.50,"MeanCCF>=50","MeanCCF<50")
+
+master_ndt$deltaCCF<-master_ndt$ccf_on - master_ndt$ccf_pre
+
+tpos_cluster<-as.data.frame(table(master_ndt$pt_cluster, master_ndt$tetramer))
+tpos_cluster<-tpos_cluster[which(tpos_cluster$Var2=="TETRAMER+" & tpos_cluster$Freq>0),]
+no_tpos_cluster<-as.data.frame(table(master_ndt$pt_cluster, master_ndt$tetramer))
+no_tpos_cluster<-no_tpos_cluster[which(no_tpos_cluster$Var2=="TETRAMER+" & no_tpos_cluster$Freq==0),]
+
+master_ndt$tpos_cluster<-ifelse(master_ndt$pt_cluster %in% tpos_cluster$Var1, "Cluster with Tetramer+","Cluster without Tetramer+")
+
+#master_ndt$tetramer[which(is.na(master_ndt$tetramer))]<-"variant"
+master_ndt$Binder[which(is.na(master_ndt$Binder))]<-"variant"
+
+nb_master_ndt<-master_ndt[which(master_ndt$Binder == "variant"),]
+nb_master_ndt$myBOR<-factor(nb_master_ndt$myBOR,levels = c("PR","SD","PD"))
+nb_master_ndt<-nb_master_ndt[which(nb_master_ndt$patient %in% sanquin_pts),]
+
+# f4i<-ggplot(nb_master_ndt,aes(x=tpos_cluster,y=deltaCCF,fill=tpos_cluster)) + geom_boxplot(outlier.shape = NA) + facet_wrap(~mean_CCF_group) +stat_compare_means(method = "t.test") + theme_pubclean() +theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),axis.ticks = element_blank())
+# f4i
+
+clonal<-nb_master_ndt[which(nb_master_ndt$mean_CCF_group=="MeanCCF>=50"),]
+subclonal<-nb_master_ndt[which(nb_master_ndt$mean_CCF_group=="MeanCCF<50"),]
+
+
+g<-ggplot(subclonal,aes(x=tpos_cluster,y=deltaCCF,fill=tpos_cluster)) + geom_boxplot(outlier.shape = NA) + facet_wrap(~myBOR)+ stat_compare_means(method = "t.test") + theme_pubclean() +theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),axis.ticks = element_blank()) + ylab("Delta CCF of Non-Binder variants") + xlab("")
+g
+
+# f4j<-ggplot(clonal,aes(x=tpos_cluster,y=deltaCCF,fill=tpos_cluster)) + geom_boxplot(outlier.shape = NA) + facet_wrap(~myBOR)+stat_compare_means(method = "t.test") + theme_pubclean() +theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),axis.ticks = element_blank())
+# f4j
+
+```
+
+```{r Gplot, echo=FALSE}
+
+# pdf(paste0(out_dir,"Supplemental5G_new.pdf"), height=7, width=10)
+# print(g)
+# dev.off()
+
+```
+
+
+```{r JK, echo=FALSE}
+
+control_peptides<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/control_peptides.txt")
+positive_control_peptides<-control_peptides[which(control_peptides$PreRx > 0),]
+unique(positive_control_peptides$patient)
+
+control_peps<-positive_control_peptides
+
+control_peps$percent_pre<-log2(control_peps$PreRx +0.0001)
+control_peps$percent_on<-log2(control_peps$OnRx1 + control_peps$OnRx2 +0.0001)
+control_peps$myBOR<-factor(control_peps$myBOR, levels = c("PR","SD","PD"))
+j<-ggpaired(control_peps, cond1 = "percent_pre", cond2 = "percent_on",
+            color = "condition", line.color="grey", palette = "jco")+
+  stat_compare_means(paired = T, label.y=1.15)+
+  xlab("Time")+
+  ylab("log2 Percent T cells")
+
+j
+
+k<-ggpaired(control_peps, cond1 = "percent_pre", cond2 = "percent_on",
+            color = "condition", line.color="grey", palette = "jco")+
+  stat_compare_means(paired = T, label.y=1.15)+
+  xlab("Time")+
+  ylab("log2 Percent T cells")+
+  facet_wrap(~myBOR)
+
+k
+
+```
+
+```{r JKplot, echo=FALSE}
+
+# pdf(paste0(out_dir,"Supplemental5J.pdf"), height=6, width=6)
+# print(j)
+# dev.off()
+# 
+# pdf(paste0(out_dir,"Supplemental5k.pdf"), height=6, width=6)
+# print(k)
+# dev.off()
+
+```
+
+
