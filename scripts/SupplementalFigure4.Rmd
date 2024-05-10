@@ -1,0 +1,288 @@
+---
+title: "Untitled"
+output: html_document
+date: "2023-06-20"
+---
+```{r setup, include=FALSE}
+library(survminer)
+library(survival)
+library(dplyr)
+library(stringr)
+library(tidyverse)
+set.seed(7)
+```
+
+## Supplemental Figure 4 : Delta CCF waterfall plot - using calculated ccf 
+###           input: master 
+
+
+```{r input, echo=FALSE}
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+master_file_1<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master_file_2<-"master_NDT_VMResults_v2_CCFmean.txt"
+master_1<-read.delim(paste0(data_dir,master_file_1),sep="\t",header=TRUE)
+master_2<-read.delim(paste0(data_dir,master_file_2),sep="\t",header=TRUE)
+#out_dir<-"/Users/bangalp2/Documents/GitHub/Checkmat153_Immunogenicity_NatureMedicine/scripts/"
+
+sanquin_pts<-unique(master_2$patient[which(!is.na(master_2$Binder))])
+
+```
+
+###           input: clinical response data
+```{r input2, echo=FALSE}
+clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
+clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
+clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"
+clinical_data_response$color<-NA
+clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"green"
+clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
+clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
+```
+
+### still using calculated ccf for plotting 
+
+```{r A, echo=FALSE}
+clonal_cutoff<-0.95
+master_2$pre_clonal<-ifelse(master_2$ccf_pre>= clonal_cutoff,"clonal","subclonal")
+master_2$on_clonal<-ifelse(master_2$ccf_on>= clonal_cutoff,"clonal","subclonal")
+table(master_2$pre_clonal)
+table(master_2$on_clonal)
+master_2$AA_ref<-str_split_fixed(master_2$PT_MUT,"_",5)[,4]
+master_2$AA_alt<-str_split_fixed(master_2$PT_MUT,"_",5)[,5]
+master_2$Variant_Type<-ifelse(str_length(master_2$AA_ref) == str_length(master_2$AA_alt),"SNP","INDEL")
+master_2_snv<-master_2[which(master_2$Variant_Type=="SNP"),]
+
+table(master_1$pre_clonal)
+table(master_1$on_clonal)
+master_1<-master_1[which(master_1$Variant_Type =="SNP"),]
+
+
+### find abundance of clonal and subclonal variants 
+master<-master_2_snv
+pre_clonal_df<-as.data.frame(table(master$patient,master$pre_clonal))
+pre_clonal_df<-pre_clonal_df[which(pre_clonal_df$Var2=="clonal"),]
+on_clonal_df<-as.data.frame(table(master$patient,master$on_clonal))
+on_clonal_df<-on_clonal_df[which(on_clonal_df$Var2=="clonal"),]
+
+pre_subclonal_df<-as.data.frame(table(master$patient,master$pre_clonal))
+pre_subclonal_df<-pre_subclonal_df[which(pre_subclonal_df$Var2=="subclonal"),]
+on_subclonal_df<-as.data.frame(table(master$patient,master$on_clonal))
+on_subclonal_df<-on_subclonal_df[which(on_subclonal_df$Var2=="subclonal"),]
+
+### merge each with clinical data
+colnames(pre_clonal_df)<-c("patient","clonality","abundance")
+colnames(pre_subclonal_df)<-c("patient","clonality","abundance")
+colnames(on_clonal_df)<-c("patient","clonality","abundance")
+colnames(on_subclonal_df)<-c("patient","clonality","abundance")
+pre_clonal_df<-merge(pre_clonal_df,clinical_data_response,by.x="patient",by.y="PatientID",all.x=TRUE)
+pre_subclonal_df<-merge(pre_subclonal_df,clinical_data_response,by.x="patient",by.y="PatientID",all.x=TRUE)
+on_clonal_df<-merge(on_clonal_df,clinical_data_response,by.x="patient",by.y="PatientID",all.x=TRUE)
+on_subclonal_df<-merge(on_subclonal_df,clinical_data_response,by.x="patient",by.y="PatientID",all.x=TRUE)
+
+val<-median(pre_clonal_df$abundance)
+print(val)
+pre_clonal_df$Highlow<-ifelse(pre_clonal_df$abundance > val, "Greater than Median", "Less than Median")
+pre_clonal_df$sHighlow<-as.factor(pre_clonal_df$Highlow)
+f<-survfit(Surv(OS_time_Mon, OS_event) ~ Highlow, data = pre_clonal_df)
+a1<-ggsurvplot(fit = f,pval=TRUE, risk.table=TRUE,
+           xlab = "Months",
+           legend.labs=c("Greater than Median","Less than Median"),
+           legend="bottom",
+           palette=c("red", "blue"),
+           pval.coord=c(2,0.25),
+           ylab = "Overall survival probability", title=paste("Pre-Therapy Clonal Abundance of \n SNV (split by median) "),
+           ggtheme = theme_classic2(base_size=12))
+
+val<-median(pre_subclonal_df$abundance)
+print(val)
+pre_subclonal_df$Highlow<-ifelse(pre_subclonal_df$abundance > val, "Greater than Median", "Less than Median")
+pre_subclonal_df$sHighlow<-as.factor(pre_subclonal_df$Highlow)
+f<-survfit(Surv(OS_time_Mon, OS_event) ~ Highlow, data = pre_subclonal_df)
+a2<-ggsurvplot(fit = f,pval=TRUE, risk.table=TRUE,
+           xlab = "Months",
+           legend.labs=c("Greater than Median","Less than Median"),
+           legend="bottom",
+           palette=c("red", "blue"),
+           pval.coord=c(2,0.25),
+           ylab = "Overall survival probability", title=paste("Pre-Therapy Subclonal Abundance of \n SNV (split by median)"),
+           ggtheme = theme_classic2(base_size=12))
+
+val<-median(on_clonal_df$abundance)
+print(val)
+on_clonal_df$Highlow<-ifelse(on_clonal_df$abundance > val, "Greater than Median", "Less than Median")
+on_clonal_df$sHighlow<-as.factor(on_clonal_df$Highlow)
+f<-survfit(Surv(OS_time_Mon, OS_event) ~ Highlow, data = on_clonal_df)
+a3<-ggsurvplot(fit = f,pval=TRUE, risk.table=TRUE,
+           xlab = "Months",
+           legend.labs=c("Greater than Median","Less than Median"),
+           legend="bottom",
+           palette=c("red", "blue"),
+           pval.coord=c(2,0.25),
+           ylab = "Overall survival probability", title=paste("On-Therapy Clonal Abundance of \n SNV (split by median)"),
+           ggtheme = theme_classic2(base_size=12))
+
+val<-median(on_subclonal_df$abundance)
+print(val)
+on_subclonal_df$Highlow<-ifelse(on_subclonal_df$abundance > val, "Greater than Median", "Less than Median")
+on_subclonal_df$sHighlow<-as.factor(on_subclonal_df$Highlow)
+f<-survfit(Surv(OS_time_Mon, OS_event) ~ Highlow, data = on_subclonal_df)
+a4<-ggsurvplot(fit = f,pval=TRUE, risk.table=TRUE,
+           xlab = "Months",
+           legend.labs=c("Greater than Median","Less than Median"),
+           legend="bottom",
+           palette=c("red", "blue"),
+           pval.coord=c(2,0.25),
+           ylab = "Overall survival probability", title=paste("On-Therapy Subclonal Abundance of \n SNV (split by median)"),
+           ggtheme = theme_classic2(base_size=12))
+
+
+
+
+# pdf(file=paste0(out_dir, "SupplementalFigure4A.pdf" ))
+# par( mfrow= c(2,2) )
+print(a1)
+print(a2)
+print(a3)
+print(a4)
+#dev.off()
+
+```
+
+
+#### Percent of variants classified as clonal 
+```{r B, echo=FALSE,warning=FALSE}
+
+master<-master_2
+ccf_cutoff=0.95
+
+master$clonalityON<-NA
+master$clonalityON[which(master$ccf_on>=ccf_cutoff)]<-"clonal"
+master$clonalityON[which(master$ccf_on<ccf_cutoff)]<-"subclonal"
+table(master$clonalityON,master$myBOR)
+
+master$clonalityPRE<-NA
+master$clonalityPRE[which(master$ccf_pre>=ccf_cutoff)]<-"clonal"
+master$clonalityPRE[which(master$ccf_pre<ccf_cutoff)]<-"subclonal"
+table(master$clonalityPRE,master$myBOR)
+
+table(master$patient,master$clonalityON)
+table(master$patient,master$clonalityPRE)
+
+clonalityON<-as.data.frame(as.matrix(table(master$patient,master$clonalityON)))
+clonalityPRE<-as.data.frame(as.matrix(table(master$patient,master$clonalityPRE)))
+
+library(tidyr)
+on_df<-spread(clonalityON,Var2,Freq)
+on_df$sum<-on_df$clonal + on_df$subclonal
+on_df$percentClonal<-(on_df$clonal/on_df$sum)*100
+on_df$percentSubclonal<-(on_df$subclonal/on_df$sum)*100
+
+response<-unique(master[,c("patient","myBOR","color")])
+response$myBOR[which(response$myBOR=="PR")]<-"CR/PR"
+on_df<-merge(response,on_df,by.x="patient",by.y="Var1", all.y=TRUE)
+
+pre_df<-spread(clonalityPRE,Var2,Freq)
+pre_df$sum<-pre_df$clonal + pre_df$subclonal
+pre_df$percentClonal<-(pre_df$clonal/pre_df$sum)*100
+pre_df$percentSubclonal<-(pre_df$subclonal/pre_df$sum)*100
+
+
+pre_df<-merge(response,pre_df,by.x="patient",by.y="Var1", all.y=TRUE)
+
+library(ggplot2)
+library(ggpubr)
+library(stringr)
+my_comparisons=rev(list(c("PD","CR/PR"),c("PD","SD"),c("CR/PR","SD")))
+on_df$myBOR <- factor(on_df$myBOR,c("CR/PR", "SD", "PD"))
+g1<-ggplot(on_df,aes(x=myBOR,y=percentClonal,fill=myBOR)) +geom_boxplot()+
+  scale_fill_manual(values=c("green","orange","red"))+ theme_pubr()+
+  stat_compare_means(comparison=my_comparisons,label="p.format",method="wilcox.test",size=5) +
+  ylab("On-treatment percentage of variants\n classified as clonal")+
+  theme(text = element_text(size = 15)) 
+
+g2<-ggplot(on_df,aes(x=myBOR,y=percentSubclonal,fill=myBOR)) +geom_boxplot()+
+  scale_fill_manual(values=c("green","orange","red"))+ theme_pubr()+
+  stat_compare_means(comparison=my_comparisons,label="p.format",method="wilcox.test",size=5) +
+  ylab("On-treatment percentage of variants\n classified as subclonal")+
+  theme(text = element_text(size = 14)) 
+
+# out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/review_validation_mutability"
+#pdf(paste0(out_dir,"/percentClonal_ontreatment_now.pdf"),height=6,width=7)
+print(g1)
+#dev.off()
+
+#pdf(paste0(out_dir,"/percentSubclonal_ontreatment_now.pdf"),height=6,width=7)
+print(g2)
+#dev.off()
+
+pre_df$myBOR <- factor(pre_df$myBOR,c("CR/PR", "SD", "PD"))
+g11<-ggplot(pre_df,aes(x=myBOR,y=percentClonal,fill=myBOR)) +geom_boxplot()+
+  scale_fill_manual(values=c("green","orange","red"))+ theme_pubr()+
+  stat_compare_means(comparison=my_comparisons,label="p.format",method="wilcox.test",size=5) +
+  ylab("Pre-treatment percentage of variants\n classified as clonal")+
+  theme(text = element_text(size = 15)) 
+
+g21<-ggplot(pre_df,aes(x=myBOR,y=percentSubclonal,fill=myBOR)) +geom_boxplot()+
+  scale_fill_manual(values=c("green","orange","red"))+ theme_pubr()+
+  stat_compare_means(comparison=my_comparisons,label="p.format",method="wilcox.test",size=5) +
+  ylab("Pre-treatment percentage of vriants\n classified as subclonal")+
+  theme(text = element_text(size = 14)) 
+
+# out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/review_validation_mutability"
+#pdf(paste0(out_dir,"/percentClonal_pretreatment_now.pdf"),height=6,width=7)
+print(g11)
+#dev.off()
+
+#pdf(paste0(out_dir,"/percentSubclonal_pretreatment_now.pdf"),height=6,width=7)
+print(g21)
+#dev.off()
+
+
+```
+
+
+```{r G, echo=FALSE,warning=FALSE}
+s_master<-master_1[which(!is.na(master_1$Selection)),]
+#pdf(paste0(out_dir,"SupplementalFigure4G.pdf"))
+ggplot(s_master, aes(x=vaf_bam_readcount.pre,y=vaf_bam_readcount.on)) +geom_point(aes(colour = factor(Selection))) + xlab("VAF Pre-Treatment") + ylab("VAF On-Treatment") 
+#dev.off()
+```
+
+
+```{r E, echo=FALSE, warning=FALSE}
+## clusters with mean CCF >=50
+## need to use ndt clusters
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+master_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+#master_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
+#out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/SupplementalFigure4/"
+#master<-master[which(master$patient %in% sanquin_pts),]
+
+master$pt_cluster<-paste(master$patient, master$cluster,sep="_")
+mean_pre<-aggregate(master$ccf_pre, list(master$pt_cluster), mean)
+colnames(mean_pre)<-c("pt_cluster","meanCCF")
+master<-merge(master,mean_pre,by.x = "pt_cluster",by.y="pt_cluster",all.x=T)
+master$mean_CCF_group<-ifelse(master$meanCCF >= 0.50,"MeanCCF>=50","MeanCCF<50")
+
+# master$pt_cluster<-paste(master$patient, master$cluster,sep="_")
+# cluster_mean<-master %>%
+#   group_by(pt_cluster) %>%
+#   summarise_at(vars(ccf_pre), list(meanCCF = mean))
+
+
+s_master<-master[which(master$meanCCF >= 0.50),]
+
+pt_cluster_count<-as.data.frame(unique(s_master$pt_cluster))
+pt_cluster_count$pt<-str_split_fixed(pt_cluster_count$`unique(s_master$pt_cluster)`,"_",2)[,1]
+pt_cluster_count<-merge(pt_cluster_count,clinical_data_response,by.x = "pt",by.y = "PatientID", all.x=TRUE)
+
+
+dd<-as.data.frame(table(pt_cluster_count$pt))
+dd<-merge(dd,clinical_data_response,by.x = "Var1",by.y = "PatientID", all.x=TRUE)
+dd$myBOR<-factor(dd$myBOR,levels=c("CR/PR","SD","PD"))
+#pdf(paste0(out_dir,"SupplementalFigure4E.pdf"))
+ggplot(dd, aes(x=myBOR, y=Freq, fill=myBOR)) + geom_boxplot() + stat_compare_means() + scale_fill_manual(values=c("green", "orange","red")) +theme_pubr() +ylab("Number of clones with mean CCF >=50")
+#dev.off()
+```
+

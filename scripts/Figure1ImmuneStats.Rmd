@@ -1,0 +1,128 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+```{r setup, include=FALSE,echo=FALSE}
+library(tidyverse)
+library(maftools)
+library(RColorBrewer)
+library(data.table)
+library(rstatix)
+library(ggpubr)
+library(lubridate)
+
+library(clusterProfiler)
+library(dplyr)
+library(ggplot2)
+library(ggpubr)
+library(org.Hs.eg.db)
+library(stringr)
+library(AnnotationDbi)
+library(enrichplot)
+```
+
+```{r echo=FALSE}
+clincalData<-readRDS(file = "/Volumes/chant2lab/wrkg/projects/active/BMS153/Analysis_Dec_2022/CDKN2A/ClinicalData.rds")
+
+```
+
+
+```{r echo=FALSE}
+
+ssgsea_scores<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Analysis_Dec_2022/Stats_on_Immune/ssGSEA_Scores.csv", row.names = 1)
+
+```
+
+
+```{r echo=FALSE}
+
+Metadatav2<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/Metadata_bms153.csv")
+
+Metadatav2[sapply(Metadatav2, is.character)] <- lapply(Metadatav2[sapply(Metadatav2, is.character)], as.factor)
+Metadatav2$Response[Metadatav2$Response==""]<-NA
+Metadatav2$Response[is.na(Metadatav2$Response)]<-"PD"
+rownames(Metadatav2)<-Metadatav2$ID
+
+
+ssgsea_scoresFull<-ssgsea_scores
+ssgsea_scoresFull$Celltype<-row.names(ssgsea_scoresFull)
+long_Scoresv2<-gather(data=ssgsea_scoresFull,key = "Sample", value = "score", -Celltype)
+long_Scoresv2<-merge(long_Scoresv2,Metadatav2[c(1,2,3,5)], by.x="Sample", by.y="ID")
+
+
+long_Scoresv2$Response_Group<-ifelse(long_Scoresv2$Response=="PD", "PD", "SD_PR")
+long_Scoresv2<-subset(long_Scoresv2, long_Scoresv2$Time=="pre")
+long_Scoresv2$Response_Group<-as.factor(long_Scoresv2$Response_Group)
+stat.test.response <- long_Scoresv2 %>%
+  group_by(Celltype) %>%
+  t_test(score ~ Response_Group)
+#stat.test.response
+stat.test.response <- stat.test.response %>% add_xy_position(x = "Celltype")
+
+p1<-ggplot( long_Scoresv2, aes(Celltype, score, color=Response_Group)) +
+  geom_boxplot(aes(), position = position_dodge(1), outlier.shape=NA) + 
+  geom_point(position=position_jitterdodge(),size=0.4)+
+  scale_color_manual(values = c("red","green"))+
+  ggtitle("Pre-treatment Comparison by Response")+
+  theme_pubr() + 
+  theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),legend.position = "bottom")+
+  stat_pvalue_manual(stat.test.response,
+                     label = "p",
+                     tip.length = 0,
+                     hide.ns = TRUE,
+                     step.increase = 0.08,
+                      label.size=2)
+p1
+#ggsave("./boxplot_response_pretreatment_withxcell.pdf", height=7, width=8)
+
+# pdf("/Users/bangalp2/Documents/GitHub/Checkmat153_Immunogenicity_NatureMedicine/ImmuneStats.pdf",height=5,width=8)
+# print(p1)
+# dev.off()
+
+
+
+```
+
+
+```{r echo=FALSE,warning=FALSE}
+
+
+c5_bp<-read.gmt("/Volumes/chant2lab/CITI_Bioinformatics/GENESETS_SS/Human/MSIGDB/MSIGDB_c5.go.bp.v2023.2.Hs.symbols.gmt")
+c5_bp_sub<-c5_bp[which(str_detect(c5_bp$term,"MUSCLE",negate=TRUE)),]
+
+diff_All<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153_v2_2024_PP/DifferentialExpression_pairedTime_on_vs_pre.csv")
+diff_NR<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153_v2_2024_PP/DifferentialExpression_pairedTime_Response_on_PD_vs_pre_PD.csv")
+diff_R<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153_v2_2024_PP/DifferentialExpression_pairedTime_Response_on_PRSD_vs_pre_PRSD.csv")
+
+diff_All$EnsembleID<-as.character(diff_All$EnsembleID)
+diff_NR$EnsembleID<-as.character(diff_NR$EnsembleID)
+diff_R$EnsembleID<-as.character(diff_R$EnsembleID)
+
+diff_All$Gene<-mapIds(org.Hs.eg.db, keys=diff_All$EnsembleID, column=c("SYMBOL"), keytype="ENTREZID", multiVals="first")
+diff_NR$Gene<-mapIds(org.Hs.eg.db, keys=diff_NR$EnsembleID, column=c("SYMBOL"), keytype="ENTREZID", multiVals="first")
+diff_R$Gene<-mapIds(org.Hs.eg.db, keys=diff_R$EnsembleID, column=c("SYMBOL"), keytype="ENTREZID", multiVals="first")
+
+
+genesets_2<-lst()
+genesets_2[["TotalResponseToTreatment"]]<-diff_All$Gene[which(diff_All$log2FoldChange>0 &diff_All$pvalue<=0.05)]
+genesets_2[["Non_RespondersResponseToTreatment"]]<-diff_NR$Gene[which(diff_NR$log2FoldChange>0 & diff_NR$pvalue<=0.05)]
+genesets_2[["RespondersResponseToTreatment"]]<-diff_R$Gene[which(diff_R$log2FoldChange>0 &diff_R$pvalue<=0.05)]
+
+
+
+x <- compareCluster(genesets_2, enricher, TERM2GENE=c5_bp_sub, pvalueCutoff=0.1)
+res<-x@compareClusterResult
+res$Description<-gsub("GOBP_","",res$Description)
+res$Description<-gsub("_"," ",res$Description)
+x@compareClusterResult<-res
+# out_dir<-"/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153_v2_2024_PP/output/"
+# pdf(paste0(out_dir,"fig1D_c5_bp_paired_fromEnsembl_cutoff_from_paper_0.05_0.1_names.pdf"),height=25,width=8)
+dotplot(x,showCategory=10) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
+#dev.off()
+
+```
+

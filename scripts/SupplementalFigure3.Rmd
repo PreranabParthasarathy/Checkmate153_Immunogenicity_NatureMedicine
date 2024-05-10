@@ -1,0 +1,230 @@
+---
+title: "R Notebook"
+output:
+  html_document:
+    df_print: paged
+---
+
+
+
+
+```{r setup , include=FALSE,results='hide'}
+library(tidyverse)
+library(DESeq2)
+library(viridis)
+library(pheatmap)
+library(ggplot2)
+library(ggrepel)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(genefilter)
+library(RColorBrewer)
+library(EnhancedVolcano)
+library(clusterProfiler)
+library(ggpubr)
+library(edgeR)
+library(GSVA)
+library(ComplexHeatmap)
+library(survival)
+library(survminer)
+
+```
+
+
+
+```{r fig.height=5, fig.width=12,echo=FALSE,warning=FALSE,results='hide'}
+######setwd("/Volumes/chant2lab/wrkg/projects/active/Ko_RNAseq_pilot/subread/featureCounts_hg38_vir/buildpipe/")
+hall <- read.gmt("/Volumes/chant2lab/wrkg/resources/GSEA_Gene_Sets/h.all.v7.2.symbols.gmt")
+
+
+#input number of samples
+n<-36
+
+#set columns of metadatato compare Manually
+comps<-c("Time")
+
+###read in featureCounts Matrix file from subread output.
+#This is corresponding to hg19 alignment by David Ko from MSK
+d<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/RNAseq_BMS153_RawCnt.csv", row.names=1)
+
+
+
+#read in metadata
+Metadata<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/Metadata_bms153.csv")
+rownames(Metadata)<-Metadata$ID
+
+#create clean dataset where only sample columns (counts) that match metadata samples are selected for downstream
+L<- subset(Metadata, Exclude=="", select=c(ID))
+L<-L$ID
+
+Metadata[sapply(Metadata, is.character)] <- lapply(Metadata[sapply(Metadata, is.character)], as.factor)
+rownames(Metadata)<-Metadata$ID
+Ds<-d %>% dplyr::select(all_of(L))
+Ds<-data.frame(Ds)
+
+```
+
+
+
+
+
+
+```{r echo=FALSE,warning=FALSE,results='hide'}
+# Remove Low expressed Genes cutoff 10 counts per row
+keep <- rowSums(Ds) >= 10
+Ds <- Ds[keep,]
+rowVars(Ds)
+
+###Clean datat by cpm and save raw count files and cpm files
+r<-Ds
+
+
+r <-r[order(-r[,1]),]
+r$ENTREZID <- gsub("\\..*$", "", rownames(r))
+
+
+r$GeneSymbol<- mapIds(org.Hs.eg.db, keys=r$ENTREZID, column=c("SYMBOL"), keytype="ENTREZID", multiVals="first")
+
+r$ENTREZID<-rownames(r)
+
+
+#subset count columns only
+rcpm<-r
+rcpm[1:n]<-cpm(rcpm[1:n])
+keep <- rowSums(rcpm[1:n]) >= 2
+
+r <- r[keep,]
+
+r<-r[!duplicated(r$GeneSymbol),]
+r<-r[!is.na(r$GeneSymbol),]
+row.names(r)<-r$GeneSymbol
+r$GeneSymbol<-NULL
+r$ENTREZID<-NULL
+```
+
+
+
+
+```{r echo=FALSE,warning=FALSE,results='hide'}
+signature<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/gene_signatures_with_APMs_IFNG.Entrez.csv")
+signature$Entrez<-as.character(signature$Entrez)
+
+
+signature$GeneSymbol<- mapIds(org.Hs.eg.db, keys=signature$Entrez, column=c("SYMBOL"), keytype="ENTREZID", multiVals="first")
+signature$Entrez<-NULL
+
+genelist <- split(as.character(signature[,2]),as.character(signature[,1]))
+
+counts<-r
+counts<-as.matrix(counts)
+scores <- gsva(counts,genelist,method="ssgsea",ssgsea.norm=FALSE, kcdf="Gaussian")
+library(xCell)
+
+xcellscore<-xCellAnalysis(counts)
+
+scores<-rbind(scores, xcellscore[c(67,66,65),])
+
+
+DS<-as.data.frame(t(scores))
+
+DS2<-merge(DS, Metadata, by.x=0, by.y="ID")
+DS2$Time<-as.factor(DS2$Time)
+levels(DS2$Time)
+DS2<-DS2[order(DS2$Time),]
+DS1<-DS2[1:34]
+row.names(DS1)<-DS1$Row.names
+DS1$Row.names<-NULL
+library(viridis)
+Time        <- c("red", "blue")
+names(Time ) <- c("on", "pre")
+anno_colors <- list(Time   =Time)
+DS1<-as.matrix(DS1)
+MetadataC<-subset(Metadata, Exclude=="")
+MetadataC<-MetadataC[order(MetadataC$Time),]
+MetadataC$Response[MetadataC$Response==""]<-NA
+MetadataC$Response[is.na(MetadataC$Response)]<-"PD"
+MetadataC$SampleID<-gsub("_pre", "", MetadataC$ID)
+MetadataC$SampleID<-gsub("_on", "", MetadataC$SampleID)
+
+
+GMD<-read.delim("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/genomic_metadata.txt")
+# data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+# mut_counts_file<-"MUTATIONS_COUNT_NEOANTIGENS.txt"
+# SNVD<-read.delim(paste0(data_dir,mut_counts_file),sep="\t",header=TRUE)
+SNVD<-read.delim("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/MUTATION_COUNT_ALL.txt")
+NMD<-merge(GMD,SNVD, by.x="Patient", by.y="patient")
+MetadataC2<-merge(MetadataC, SNVD, by.x="SampleID", by.y="patient", all.x=T)
+MetadataC2$SNV_pre_mutations<-(as.numeric(MetadataC2$SNV_pre_mutations))
+MetadataC2$SNV_on_mutations<-(as.numeric(MetadataC2$SNV_on_mutations))
+row.names(MetadataC2)<-MetadataC2$ID
+
+```
+
+
+```{r AB, echo=FALSE, warning=FALSE}
+
+ssgseasigs<-as.data.frame(t(DS1))
+row.names(ssgseasigs)
+
+keep<-c("PD1", "CTLA4", "REACTOME IFNG", "PDL1", "Cytotoxic cells","Angiogenesis", "Neutrophils", "T cells", "MicroenvironmentScore" )
+
+onnames<-row.names(MetadataC[which(MetadataC$Time=="on"),])
+prenames<-row.names(MetadataC[which(MetadataC$Time=="pre"),])
+
+ssgseasigson<-ssgseasigs[,colnames(ssgseasigs) %in% onnames]
+ssgseasigspre<-ssgseasigs[,colnames(ssgseasigs) %in% prenames]
+
+
+ssgseasigson2<-subset(ssgseasigson, row.names(ssgseasigson) %in% keep)
+ssgseasigspre2<-subset(ssgseasigspre, row.names(ssgseasigspre) %in% keep)
+
+
+ann_colorspre = list(
+    Time = c(pre="blue", on="red"),
+    Response = c(PR = "green", SD = "orange", PD="red"),
+    OS = c("white", "purple"),
+    PFS= c("white", "purple"),
+    SNV_pre_mutations = c("white", "blue"),
+    INDEL_pre_mutations =c("white", "blue")
+)
+
+
+ann_colorson = list(
+    Time = c(pre="blue", on="red"),
+    Response = c(PR = "green", SD = "orange", PD="red"),
+    OS = c("white", "purple"),
+    PFS= c("white", "purple"),
+    SNV_on_mutations = c("white", "blue"),
+    INDEL_on_mutations =c("white", "blue")
+)
+
+
+
+
+pm2<-pheatmap::pheatmap(ssgseasigspre, annotation_col = MetadataC2[c("Time", "Response", "OS", "PFS", "SNV_pre_mutations", "INDEL_pre_mutations")],
+             show_rownames=T,annotation_colors=ann_colorspre,cluster_rows = T, cluster_cols = T, scale="row", color=colorRampPalette(c("grey","grey", "white","red", "red"))(500))
+
+#jpeg("./BMS153/Heatmap_ssgsea_presamples.jpeg", height=8, width=10, units = "in", res=500);pm2;dev.off()
+
+pm2<-pheatmap::pheatmap(ssgseasigson, annotation_col = MetadataC2[c("Time", "Response", "OS", "PFS", "SNV_on_mutations", "INDEL_on_mutations")],
+             show_rownames=T,annotation_colors=ann_colorson,cluster_rows = T, cluster_cols = T, scale="row", color=colorRampPalette(c("grey","grey", "white","red", "red"))(500))
+#jpeg("./BMS153/Heatmap_ssgsea_onsamples.jpeg", height=8, width=10, units = "in", res=500);pm2;dev.off()
+
+
+
+pm3<-pheatmap::pheatmap(ssgseasigspre2, annotation_col = MetadataC2[c("Time", "Response", "OS", "PFS", "SNV_pre_mutations", "INDEL_pre_mutations")],
+             show_rownames=T,annotation_colors=ann_colorspre,cluster_rows = F, cluster_cols = T, scale="row", color=colorRampPalette(c("grey","grey", "white","red", "red"))(500))
+#jpeg("./BMS153/Heatmap_ssgsea_presamples_selected.jpeg", height=5, width=10, units = "in", res=500);pm3;dev.off()
+
+
+pm3<-pheatmap::pheatmap(ssgseasigson2, annotation_col = MetadataC2[c("Time", "Response", "OS", "PFS", "SNV_on_mutations", "INDEL_on_mutations")],
+             show_rownames=T,annotation_colors=ann_colorson,cluster_rows = F, cluster_cols = T, scale="row", color=colorRampPalette(c("grey","grey", "white","red", "red"))(500))
+
+#jpeg("./BMS153/Heatmap_ssgsea_onsamples_selected.jpeg", height=5, width=10, units = "in", res=500);pm3;dev.off()
+
+
+
+```
+
+
+

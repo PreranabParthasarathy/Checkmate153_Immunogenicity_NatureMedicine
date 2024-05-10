@@ -1,0 +1,110 @@
+---
+title: "Figure 3 Supplemental"
+output: html_document
+date: "2023-06-13"
+---
+```{r setup, include=FALSE}
+library(survminer)
+library(survival)
+library(dplyr)
+set.seed(7)
+```
+
+## supplemental Figure 3F: survival plots for pre on SVN, indel, neoantigens abundance 
+
+
+```{r input,echo=FALSE,warning=FALSE}
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+mut_counts_file<-"MUTATIONS_COUNT_NEOANTIGENS.txt"
+mut_counts<-read.delim(paste0(data_dir,mut_counts_file),sep="\t",header=TRUE)
+out_dir<-"/Users/bangalp2/Documents/GitHub/Checkmat153_Immunogenicity_NatureMedicine/scripts/"
+```
+
+###           input: clinical response data
+```{r input2,echo=FALSE,warning=FALSE}
+clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
+clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
+clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"
+clinical_data_response$color<-NA
+clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"green"
+clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
+clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
+
+ClincD<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/data/bms153dat-021918.csv")
+
+```
+
+## Including Plots
+
+
+```{r merge_clinical, echo=FALSE}
+mut_counts<-mut_counts[order(mut_counts$SNV_change_in_mutations),]
+mut_counts_response<-merge(mut_counts,clinical_data_response,by.x="patient",by.y="PatientID",all.x=TRUE)
+#mut_counts_response<-merge(mut_counts,ClincD,by.x="patient",by.y="PatientID",all.x=TRUE)
+mut_counts_response<-mut_counts_response[order(mut_counts_response$SNV_change_in_mutations),]
+
+```
+
+
+
+```{r F, echo=FALSE, warning=FALSE}
+colnames(mut_counts)
+comps<-c("SNV_pre_mutations","SNV_on_mutations","indel_pre_neoantigens","indel_on_neoantigens","SNV_change_in_neoantigens")
+
+survcurvs<-lst()
+
+for(i in comps){
+val<-median(mut_counts_response[,i])
+mut_counts_response$Highlow<-ifelse(mut_counts_response[,i]>val, "high", "low")
+mut_counts_response$sHighlow<-as.factor(mut_counts_response$Highlow)
+
+
+f<-survfit(Surv(OS_time_Mon, OS_event) ~ Highlow, data = mut_counts_response)
+
+#pdf(paste(outdir, "survivalCurve", i, ".pdf", sep=''), height=6, width=6,onefile = FALSE )
+survp<-ggsurvplot(fit = f,pval=TRUE, risk.table=TRUE,
+                  xlab = "Months", 
+                   legend.labs=c("Greater than median", "Less than median"),
+                  legend="bottom",
+                  palette=c("red", "blue"),
+                  pval.coord=c(2,0.25),
+                  ylab = "Overall survival probability", title=paste("Survival split by median of", i, sep=" "),
+                  font.title = c(8, "bold", "darkblue"))
+print(survp)
+#dev.off()
+survcurvs[i]<-survp
+
+}
+
+#print(c(survcurvs[1], survcurvs[2], survcurvs[3], survcurvs[4], survcurvs[5], survcurvs[6]))
+```
+
+```{r G, echo=FALSE,warning=FALSE}
+purity<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/NatMedReview/Avg_vaf_purity_2.txt",sep="\t")
+data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
+clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
+clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"
+clinical_data_response$color<-NA
+clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"green"
+clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
+clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
+myComps<-list(c("CR/PR","SD"),c("SD","PD"),c("CR/PR","PD"))
+
+purity<-merge(purity, clinical_data_response,by.x="patient",by.y="PatientID",all.x=TRUE)
+purity$delta_maf<-purity$AvgVaf_purity_on - purity$AvgVaf_purity_pre
+
+purity$myBOR<-factor(purity$myBOR,levels = c("CR/PR","SD","PD"))
+
+
+p1<-ggplot(purity,aes(x=myBOR,y=delta_maf,fill=myBOR)) +geom_boxplot()+
+  scale_fill_manual(values = c("green","orange","red"))+
+  stat_compare_means(method = "t.test",comparisons = myComps)+
+  theme_pubclean()+
+  ylab("Change in Purity")+ xlab("Response")+guides(fill=guide_legend(title="Response"))
+
+print(p1)
+
+```
+
+
