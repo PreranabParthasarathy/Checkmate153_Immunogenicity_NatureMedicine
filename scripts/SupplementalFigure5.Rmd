@@ -18,12 +18,12 @@ set.seed(7)
 
 
 ```{r input, echo=FALSE}
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
-master_ndt_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+data_dir<-"data/"
+master_file<-"master_maf.txt"
+master_ndt_file<-"master_NDT.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
 master_ndt<-read.delim(paste0(data_dir,master_ndt_file),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/SupplementalFigure5/May/"
+
 ```
 
 ###           input: clinical response data
@@ -68,12 +68,6 @@ A
 ```
 
 ```{r B, echo=FALSE}
-# master_ndt$DeltaCCF<-master_ndt$ccf_on - master_ndt$ccf_pre
-# s_master_ndt<-master_ndt[which(!is.na(master_ndt$Binder)),]
-# s_master_ndt$pre_clonal<-ifelse(s_master_ndt$ccf_pre >= 0.95, "clonal","subclonal")
-# s_master_ndt$response<-ifelse(s_master_ndt$myBOR %in% c("PR","SD"),"Responder","Non-Responder")
-# B1<-ggplot(s_master_ndt, aes(x=Binder, y=DeltaCCF, fill=Binder)) + geom_boxplot() + theme_pubclean() + stat_compare_means(method="t.test") + scale_fill_manual(values=c("pink","aquamarine"))
-# B1
 
 master$DeltaCCF<-master$ccf_on - master$ccf_pre
 s_master<-master[which(!is.na(master$Binder)),]
@@ -86,35 +80,16 @@ B2
 
 ```{r CDplot, echo=FALSE}
 
-# C1<-ggplot(s_master_ndt, aes(x=Binder, y=DeltaCCF, fill=Binder)) + geom_boxplot() + theme_pubclean() + stat_compare_means(method="t.test") + scale_fill_manual(values=c("pink","aquamarine")) + facet_wrap(~pre_clonal)
-# C1
+
 
 C2<-ggplot(s_master, aes(x=Binder, y=DeltaCCF, fill=Binder)) + geom_boxplot() + theme_pubclean() + stat_compare_means(method="t.test") + scale_fill_manual(values=c("pink","aquamarine")) + facet_wrap(~pre_clonal)
 C2
 
 
-# pdf(paste0(out_dir,"Supplemental5C_ndt.pdf"), height=4, width=4)
-# print(C1)
-# dev.off()
-
-# pdf(paste0(out_dir,"Supplemental5C_calculated.pdf"), height=4, width=4)
-# print(C2)
-# dev.off()
-
-# D1<-ggplot(s_master_ndt, aes(x=Binder, y=DeltaCCF, fill=Binder)) + geom_boxplot() + theme_pubclean() + stat_compare_means(method="t.test") + scale_fill_manual(values=c("pink","aquamarine")) + facet_wrap(~response)
-# D1
-
 D2<-ggplot(s_master, aes(x=Binder, y=DeltaCCF, fill=Binder)) + geom_boxplot() + theme_pubclean() + stat_compare_means(method="t.test") + scale_fill_manual(values=c("pink","aquamarine")) + facet_wrap(~response)
 D2
 
 
-# pdf(paste0(out_dir,"Supplemental5D_ndt.pdf"), height=4, width=4)
-# print(D1)
-# dev.off()
-# 
-# pdf(paste0(out_dir,"Supplemental5D_calculated.pdf"), height=4, width=4)
-# print(D2)
-# dev.off()
 
 ```
 
@@ -159,20 +134,17 @@ f<-ggplot(master_plot2, aes(x=increaseTcell, y=ccf_change, fill=increaseTcell)) 
 
 f
 
-# pdf(paste0(out_dir,"Supplemental5F_tetramerPos.pdf"), height=4, width=4)
-# print(f)
-# dev.off()
 ```
 
 
 ```{r G, echo=FALSE}
 
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
-master_ndt_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+data_dir<-"data/"
+master_file<-"master_maf.txt"
+master_ndt_file<-"master_NDT.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
 master_ndt<-read.delim(paste0(data_dir,master_ndt_file),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/SupplementalFigure5/"
+
 sanquin_pts<-unique(master$patient[which(!is.na(master$Binder))])
 
 master_ndt$pt_cluster<-paste0(master_ndt$patient,"_",master_ndt$cluster)
@@ -197,8 +169,6 @@ nb_master_ndt<-master_ndt[which(master_ndt$Binder == "variant"),]
 nb_master_ndt$myBOR<-factor(nb_master_ndt$myBOR,levels = c("PR","SD","PD"))
 nb_master_ndt<-nb_master_ndt[which(nb_master_ndt$patient %in% sanquin_pts),]
 
-# f4i<-ggplot(nb_master_ndt,aes(x=tpos_cluster,y=deltaCCF,fill=tpos_cluster)) + geom_boxplot(outlier.shape = NA) + facet_wrap(~mean_CCF_group) +stat_compare_means(method = "t.test") + theme_pubclean() +theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),axis.ticks = element_blank())
-# f4i
 
 clonal<-nb_master_ndt[which(nb_master_ndt$mean_CCF_group=="MeanCCF>=50"),]
 subclonal<-nb_master_ndt[which(nb_master_ndt$mean_CCF_group=="MeanCCF<50"),]
@@ -207,8 +177,7 @@ subclonal<-nb_master_ndt[which(nb_master_ndt$mean_CCF_group=="MeanCCF<50"),]
 g<-ggplot(subclonal,aes(x=tpos_cluster,y=deltaCCF,fill=tpos_cluster)) + geom_boxplot(outlier.shape = NA) + facet_wrap(~myBOR)+ stat_compare_means(method = "t.test") + theme_pubclean() +theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),axis.ticks = element_blank()) + ylab("Delta CCF of Non-Binder variants") + xlab("")
 g
 
-# f4j<-ggplot(clonal,aes(x=tpos_cluster,y=deltaCCF,fill=tpos_cluster)) + geom_boxplot(outlier.shape = NA) + facet_wrap(~myBOR)+stat_compare_means(method = "t.test") + theme_pubclean() +theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1),axis.ticks = element_blank())
-# f4j
+
 
 ```
 
@@ -223,7 +192,7 @@ g
 
 ```{r JK, echo=FALSE}
 
-control_peptides<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/control_peptides.txt")
+control_peptides<-read.delim("control_peptides.txt")
 positive_control_peptides<-control_peptides[which(control_peptides$PreRx > 0),]
 unique(positive_control_peptides$patient)
 

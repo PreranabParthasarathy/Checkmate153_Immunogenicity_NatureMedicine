@@ -14,10 +14,10 @@ set.seed(7)
 
 
 ```{r input,echo=FALSE,warning=FALSE}
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+data_dir<-"data/"
 mut_counts_file<-"MUTATIONS_COUNT_NEOANTIGENS.txt"
 mut_counts<-read.delim(paste0(data_dir,mut_counts_file),sep="\t",header=TRUE)
-out_dir<-"/Users/bangalp2/Documents/GitHub/Checkmat153_Immunogenicity_NatureMedicine/scripts/"
+
 ```
 
 ###           input: clinical response data
@@ -30,7 +30,7 @@ clinical_data_response$color[which(clinical_data_response$myBOR == "CR/PR")]<-"g
 clinical_data_response$color[which(clinical_data_response$myBOR == "SD")]<-"orange"
 clinical_data_response$color[which(clinical_data_response$myBOR == "PD")]<-"red"
 
-ClincD<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/data/bms153dat-021918.csv")
+ClincD<-read.csv("bms153dat-021918.csv")
 
 ```
 
@@ -80,8 +80,8 @@ survcurvs[i]<-survp
 ```
 
 ```{r G, echo=FALSE,warning=FALSE}
-purity<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/NatMedReview/Avg_vaf_purity_2.txt",sep="\t")
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
+purity<-read.delim("Avg_vaf_purity_2.txt",sep="\t")
+data_dir<-"data/"
 clinical_data<-read.delim(paste0(data_dir,"bms153dat-021918.csv"),sep=",",header=TRUE)
 clinical_data_response<-unique(clinical_data[,c("PatientID","myBOR","OS_event","OS_time_Mon","PFS_event","PFS_time")])
 clinical_data_response$myBOR[which(is.na(clinical_data_response$myBOR))]<-"PD"

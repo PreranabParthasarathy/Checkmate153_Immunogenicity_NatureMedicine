@@ -16,13 +16,12 @@ set.seed(7)
 
 ###           input: master 
 ```{r input, echo=FALSE}
-data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
-master_file_ndt<-"master_NDT_VMResults_v2_CCFmean_duplicated.txt"
-master_file_ndt<-"master_NDT_VMResults_v2_CCFmean.txt"
+data_dir<-"data/"
+master_file<-"master_maf.txt"
+master_file_ndt<-"master_NDT.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
 master_ndt<-read.delim(paste0(data_dir,master_file_ndt),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure4/"
+
 ```
 
 ###           input: clinical response data
@@ -83,30 +82,17 @@ d
 e
 f
 ```
-#### PhylogicNDT CCF
 
-```{r DEF2, echo=FALSE}
-# d<-ggplot(s_master_ndt_tet, aes(x=tetramer,y=DeltaCCF, fill = tetramer)) + geom_boxplot() +stat_compare_means(method = "t.test") + theme_pubclean() + scale_fill_manual(values = c("green2","blue2"))
-# 
-# e<-ggplot(s_master_ndt_tet, aes(x=tetramer,y=DeltaCCF,fill=tetramer)) + geom_boxplot() + facet_wrap(~pre_clonal)+stat_compare_means(method = "t.test") + theme_pubclean()+ scale_fill_manual(values = c("green2","blue2"))
-# 
-# f<-ggplot(s_master_ndt_tet, aes(x=tetramer,y=DeltaCCF,fill=tetramer)) + geom_boxplot() + facet_wrap(~response)+stat_compare_means(method = "t.test") + theme_pubclean()+ scale_fill_manual(values = c("green2","blue2"))
-# 
-# 
-# d
-# e
-# f
-```
 
 
 
 ### Figure 4 G,H
 
 ```{r GH, echo=FALSE}
-data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
-master_file_ndt<-"master_NDT_VMResults_v2_CCFmean.txt"
+data_dir<-"data/"
+master_file_ndt<-"master_NDT.txt"
 master_ndt<-read.delim(paste0(data_dir,master_file_ndt),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure4/"
+
 
 
 figure2_pts<-c("Pt1683","Pt1643")
@@ -147,11 +133,11 @@ for(i in figure2_pts){
 ```{r IJ, echo=FALSE}
 
 data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
-master_ndt_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+master_file<-"master_maf.txt"
+master_ndt_file<-"master_NDT.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
 master_ndt<-read.delim(paste0(data_dir,master_ndt_file),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure4/"
+
 sanquin_pts<-unique(master$patient[which(!is.na(master$Binder))])
 
 master_ndt$pt_cluster<-paste0(master_ndt$patient,"_",master_ndt$cluster)

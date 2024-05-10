@@ -17,12 +17,12 @@ set.seed(7)
 
 
 ```{r input, echo=FALSE}
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
-master_file_1<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
-master_file_2<-"master_NDT_VMResults_v2_CCFmean.txt"
+data_dir<-"data/"
+master_file_1<-"master_maf.txt"
+master_file_2<-"master_NDT.txt"
 master_1<-read.delim(paste0(data_dir,master_file_1),sep="\t",header=TRUE)
 master_2<-read.delim(paste0(data_dir,master_file_2),sep="\t",header=TRUE)
-#out_dir<-"/Users/bangalp2/Documents/GitHub/Checkmat153_Immunogenicity_NatureMedicine/scripts/"
+
 
 sanquin_pts<-unique(master_2$patient[which(!is.na(master_2$Binder))])
 
@@ -228,7 +228,7 @@ g21<-ggplot(pre_df,aes(x=myBOR,y=percentSubclonal,fill=myBOR)) +geom_boxplot()+
   ylab("Pre-treatment percentage of vriants\n classified as subclonal")+
   theme(text = element_text(size = 14)) 
 
-# out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/review_validation_mutability"
+
 #pdf(paste0(out_dir,"/percentClonal_pretreatment_now.pdf"),height=6,width=7)
 print(g11)
 #dev.off()
@@ -252,12 +252,12 @@ ggplot(s_master, aes(x=vaf_bam_readcount.pre,y=vaf_bam_readcount.on)) +geom_poin
 ```{r E, echo=FALSE, warning=FALSE}
 ## clusters with mean CCF >=50
 ## need to use ndt clusters
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
-master_file<-"master_NDT_VMResults_v2_CCFmean.txt"
-#master_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+data_dir<-"/data/"
+master_file<-"master_NDT.txt"
+
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
-#out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/SupplementalFigure4/"
-#master<-master[which(master$patient %in% sanquin_pts),]
+
+
 
 master$pt_cluster<-paste(master$patient, master$cluster,sep="_")
 mean_pre<-aggregate(master$ccf_pre, list(master$pt_cluster), mean)
@@ -265,10 +265,6 @@ colnames(mean_pre)<-c("pt_cluster","meanCCF")
 master<-merge(master,mean_pre,by.x = "pt_cluster",by.y="pt_cluster",all.x=T)
 master$mean_CCF_group<-ifelse(master$meanCCF >= 0.50,"MeanCCF>=50","MeanCCF<50")
 
-# master$pt_cluster<-paste(master$patient, master$cluster,sep="_")
-# cluster_mean<-master %>%
-#   group_by(pt_cluster) %>%
-#   summarise_at(vars(ccf_pre), list(meanCCF = mean))
 
 
 s_master<-master[which(master$meanCCF >= 0.50),]

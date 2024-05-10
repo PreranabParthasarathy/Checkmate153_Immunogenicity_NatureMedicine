@@ -17,7 +17,7 @@ set.seed(7)
 
 
 ```{r input}
-data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
+data_dir<-"data/"
 mut_counts_file<-"MUTATIONS_COUNT_NEOANTIGENS.txt"
 mut_counts<-read.delim(paste0(data_dir,mut_counts_file),sep="\t",header=TRUE)
 #out_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/plots/Figure1/"
@@ -124,10 +124,3 @@ survcurvs[i]<-survp
 ```
 
 
-### Figure 1 supplemental 
-####	A: coOnco
-####	B: coOnco
-####	C: OddsRatio
-####  D: OddsRatio
-####  E: OncoPlot with response
-####  F: survival based on HED

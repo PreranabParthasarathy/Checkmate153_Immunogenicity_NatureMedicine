@@ -33,8 +33,8 @@ library(survminer)
 
 
 ```{r fig.height=5, fig.width=12,echo=FALSE,warning=FALSE,results='hide'}
-######setwd("/Volumes/chant2lab/wrkg/projects/active/Ko_RNAseq_pilot/subread/featureCounts_hg38_vir/buildpipe/")
-hall <- read.gmt("/Volumes/chant2lab/wrkg/resources/GSEA_Gene_Sets/h.all.v7.2.symbols.gmt")
+######
+hall <- read.gmt("h.all.v7.2.symbols.gmt")
 
 
 #input number of samples
@@ -45,12 +45,12 @@ comps<-c("Time")
 
 ###read in featureCounts Matrix file from subread output.
 #This is corresponding to hg19 alignment by David Ko from MSK
-d<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/RNAseq_BMS153_RawCnt.csv", row.names=1)
+d<-read.csv("RNAseq_BMS153_RawCnt.csv", row.names=1)
 
 
 
 #read in metadata
-Metadata<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/Metadata_bms153.csv")
+Metadata<-read.csv("Metadata_bms153.csv")
 rownames(Metadata)<-Metadata$ID
 
 #create clean dataset where only sample columns (counts) that match metadata samples are selected for downstream
@@ -106,7 +106,7 @@ r$ENTREZID<-NULL
 
 
 ```{r echo=FALSE,warning=FALSE,results='hide'}
-signature<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/gene_signatures_with_APMs_IFNG.Entrez.csv")
+signature<-read.csv("gene_signatures_with_APMs_IFNG.Entrez.csv")
 signature$Entrez<-as.character(signature$Entrez)
 
 
@@ -147,11 +147,8 @@ MetadataC$SampleID<-gsub("_pre", "", MetadataC$ID)
 MetadataC$SampleID<-gsub("_on", "", MetadataC$SampleID)
 
 
-GMD<-read.delim("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/genomic_metadata.txt")
-# data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
-# mut_counts_file<-"MUTATIONS_COUNT_NEOANTIGENS.txt"
-# SNVD<-read.delim(paste0(data_dir,mut_counts_file),sep="\t",header=TRUE)
-SNVD<-read.delim("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/MUTATION_COUNT_ALL.txt")
+GMD<-read.delim("genomic_metadata.txt")
+SNVD<-read.delim("MUTATION_COUNT_ALL.txt")
 NMD<-merge(GMD,SNVD, by.x="Patient", by.y="patient")
 MetadataC2<-merge(MetadataC, SNVD, by.x="SampleID", by.y="patient", all.x=T)
 MetadataC2$SNV_pre_mutations<-(as.numeric(MetadataC2$SNV_pre_mutations))
@@ -204,23 +201,23 @@ ann_colorson = list(
 pm2<-pheatmap::pheatmap(ssgseasigspre, annotation_col = MetadataC2[c("Time", "Response", "OS", "PFS", "SNV_pre_mutations", "INDEL_pre_mutations")],
              show_rownames=T,annotation_colors=ann_colorspre,cluster_rows = T, cluster_cols = T, scale="row", color=colorRampPalette(c("grey","grey", "white","red", "red"))(500))
 
-#jpeg("./BMS153/Heatmap_ssgsea_presamples.jpeg", height=8, width=10, units = "in", res=500);pm2;dev.off()
+
 
 pm2<-pheatmap::pheatmap(ssgseasigson, annotation_col = MetadataC2[c("Time", "Response", "OS", "PFS", "SNV_on_mutations", "INDEL_on_mutations")],
              show_rownames=T,annotation_colors=ann_colorson,cluster_rows = T, cluster_cols = T, scale="row", color=colorRampPalette(c("grey","grey", "white","red", "red"))(500))
-#jpeg("./BMS153/Heatmap_ssgsea_onsamples.jpeg", height=8, width=10, units = "in", res=500);pm2;dev.off()
+
 
 
 
 pm3<-pheatmap::pheatmap(ssgseasigspre2, annotation_col = MetadataC2[c("Time", "Response", "OS", "PFS", "SNV_pre_mutations", "INDEL_pre_mutations")],
              show_rownames=T,annotation_colors=ann_colorspre,cluster_rows = F, cluster_cols = T, scale="row", color=colorRampPalette(c("grey","grey", "white","red", "red"))(500))
-#jpeg("./BMS153/Heatmap_ssgsea_presamples_selected.jpeg", height=5, width=10, units = "in", res=500);pm3;dev.off()
+
 
 
 pm3<-pheatmap::pheatmap(ssgseasigson2, annotation_col = MetadataC2[c("Time", "Response", "OS", "PFS", "SNV_on_mutations", "INDEL_on_mutations")],
              show_rownames=T,annotation_colors=ann_colorson,cluster_rows = F, cluster_cols = T, scale="row", color=colorRampPalette(c("grey","grey", "white","red", "red"))(500))
 
-#jpeg("./BMS153/Heatmap_ssgsea_onsamples_selected.jpeg", height=5, width=10, units = "in", res=500);pm3;dev.off()
+
 
 
 

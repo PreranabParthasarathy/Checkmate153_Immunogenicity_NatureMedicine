@@ -18,8 +18,8 @@ library(ggpubr)
 
 ```{r, Input, echo=FALSE}
 
-dir_name<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/model_bootstrap70"
-dir_name<-"Checkmat153_Immunogenicity_NatureMedicine/data/model_bootstrap70"
+
+dir_name<-"/data/"
 training_data<-read.delim(paste0(dir_name,"/training_50.txt"),sep="\t",header=TRUE)
 test_data<-read.delim(paste0(dir_name,"/test_50.txt"),sep="\t",header=TRUE)
 val_OHE_tesla<-read.delim(paste0(dir_name,"/tesla_val_data_new_validated.txt"),sep="\t",header=TRUE)
@@ -37,10 +37,6 @@ fit<-cv.glmnet(as.matrix(training_data[,1:66]),training_data$tet_pos_or_neg,nfol
 coefficients<-as.matrix(coef(fit,s=fit$lambda.min))
 write.table(coefficients,paste0(dir_name,"/output/coefficients_50_12",".txt"),sep="\t",col.names = TRUE,row.names = TRUE,quote = FALSE)
 
-# data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70"
-# cf<-read.delim(paste0(data_dir,"/Coefficients_avg.txt"),sep="\t",header = TRUE)
-# wh = which(fit$lambda==fit$lambda.min)
-# fit$glmnet.fit$beta[,wh] = cf[2:67,50]
 
 score<-predict(fit, newx = as.matrix(test_data[,1:66]),type="response",s=fit$lambda.min)
 score_df<-data.frame(score,test_data$pt_pep)
@@ -72,7 +68,7 @@ library(stringr)
 varImpdf$AAIndex<-NA
 varImpdf$AAIndex_def<-NA
 varImpdf$seqPos<-NA
-aaindex_def<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/TTN_iFeatureTTN_noUnivariate_lasso_0/AAINDEX_key.txt",header = FALSE, sep = "|",quote="")
+aaindex_def<-read.delim("iFeature/AAINDEX_key.txt",header = FALSE, sep = "|",quote="")
 
 
 for(i in 1:nrow(varImpdf)){
@@ -115,17 +111,12 @@ ggplot(varImpdf1,aes(x=label,y=s1)) + geom_bar(stat = "identity",width=0.5,fill=
 ```
 
 ```{r BoxPlot, echo=FALSE}
-base_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/model_bootstrap70/"
-dir_name<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/model_bootstrap70/"
+base_dir<-"data/"
+dir_name<-"data/"
 
 score_file<-"/output/prediction_scores.txt"
 tesla_score_file<-"/output/val_prediction_scores_tesla.txt"
 study_score_file<-"/output/val_prediction_scores_study.txt"
-
-# score_file<-"/prediction_scores.txt"
-# tesla_score_file<-"/val_prediction_scores_tesla.txt"
-# study_score_file<-"/val_prediction_scores_study.txt"
-
 
 test_data_file<-"/test_50.txt"
 tesla_data_file<-"/tesla_val_data_new_validated.txt"
@@ -145,27 +136,22 @@ study_data<-read.delim(paste0(base_dir,study_data_file),sep="\t",header=TRUE)
 table(study_score$val_OHE_study.pt_pep == study_data$pt_pep)
 
 
-# wilcox.test(score$s1, test_data$tet_pos_or_neg)
-# wilcox.test(tesla_score$s1, tesla_data$tet_pos_or_neg)
-# wilcox.test(study_score$s1, study_data$tet_pos_or_neg)
+
 
 score$label<-test_data$tet_pos_or_neg
-# score$label[which(score$label == 0)]<-"Non-Immunogenic"
-# score$label[which(score$label == 1)]<-"Immunogenic"
+
 score$label<-as.factor(score$label)
 test_plot<-ggplot(score,aes(x=label,y=s1)) +geom_boxplot() + stat_compare_means() + ggtitle("Test data") + ylab("Model score") 
 #test_plot
 
 tesla_score$label<-tesla_data$tet_pos_or_neg
-# tesla_score$label[which(tesla_score$label == 0)]<-"Non-Immunogenic"
-# tesla_score$label[which(tesla_score$label == 1)]<-"Immunogenic"
+
 tesla_score$label<-as.factor(tesla_score$label)
 tesla_plot<-ggplot(tesla_score,aes(x=label,y=s1)) +geom_boxplot() + stat_compare_means() + ggtitle("Tesla Consortium data") + ylab("Model score")
 #tesla_plot
 
 study_score$label<-study_data$tet_pos_or_neg
-# study_score$label[which(study_score$label == 0)]<-"Non-Immunogenic"
-# study_score$label[which(study_score$label == 1)]<-"Immunogenic"
+
 study_score$label<-as.factor(study_score$label)
 study_plot<-ggplot(study_score,aes(x=label,y=s1)) +geom_boxplot() + stat_compare_means() + ggtitle("Curated neoantigen Database") + ylab("Model score")
 #study_plot
@@ -175,30 +161,22 @@ ggarrange(test_plot,tesla_plot,study_plot,nrow=2,ncol=2)
 #ggarrange(tesla_plot,study_plot,study_tetramer_plot,nrow=2,ncol=2)
 #dev.off()
 
-# pdf(paste0(dir_name,"/output/Figure5C.pdf"),width=5,height=5)
-# print(test_plot)
-# dev.off()
-# pdf(paste0(dir_name,"/output/Figure5D.pdf"),width=5,height=5)
-# print(tesla_plot)
-# dev.off()
-# pdf(paste0(dir_name,"/output/Figure5E.pdf"),width=5,height=5)
-# print(study_plot)
-# dev.off()
+
 ```
 ```{r summaryPlot, echo=FALSE}
-master<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/createMaster/data/PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff.txt",header = TRUE, sep = "\t")
+master<-read.delim("master_maf.txt",header = TRUE, sep = "\t")
 mut_pep<-master[,c("PT_MUT","PT_PEP")]
-#prediction<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/prediction_scores.txt",header = TRUE,sep="\t")
-prediction<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/model_bootstrap70/output/prediction_scores.txt",header = TRUE,sep="\t")
-master_CCF<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/createMaster/data/master_NDT_VMResults_v2_CCFmean.txt",header = TRUE, sep = "\t")
+
+prediction<-read.delim("0/output/prediction_scores.txt",header = TRUE,sep="\t")
+master_CCF<-read.delim("master_NDT.txt",header = TRUE, sep = "\t")
 
 rank_prediction<-prediction[order(prediction$s1,decreasing = TRUE),]
 rank_prediction<-unique(rank_prediction)
 
 master_CCF<-merge(master_CCF,mut_pep,by.x="PT_MUT",by.y="PT_MUT",all.x=TRUE)
-#master_CCF_prediction<-merge(master_CCF,rank_prediction,by.x="PT_PEP",by.y="test.pt_pep",all.x=TRUE)
+
 master_CCF_prediction<-merge(master_CCF,rank_prediction,by.x="PT_PEP",by.y="test_data.pt_pep",all.x=TRUE)
-#test_data_CCF_predictions<-master_CCF_prediction[which(!is.na(master_CCF_prediction$s1)),]
+
 master_CCF_prediction<-master_CCF_prediction[order(master_CCF_prediction$s1,decreasing = TRUE),]
 master_CCF_prediction<-master_CCF_prediction[!duplicated(master_CCF_prediction$PT_MUT),]
 master_CCF_prediction$predicted_tetramer<-NA
@@ -223,14 +201,13 @@ master_CCF_prediction$cluster_with_TPos[which(master_CCF_prediction$pt_cluster %
 
 master_CCF_prediction$deltaCCF<-master_CCF_prediction$ccf_on - master_CCF_prediction$ccf_pre
 
-#master_nonBinders<-master[which(master$Binder == "NON_BINDER"),]
-#master_nonBinders$deltaCCF<-master_nonBinders$ccf_on - master_nonBinders$ccf_pre
+
 
 master_ccf_unscreened<-master_CCF_prediction[which(is.na(master_CCF_prediction$Binder)),]
 library(ggplot2)
 library(ggpubr)
 master_ccf_unscreened$myBOR<-factor(master_ccf_unscreened$myBOR,levels = c("PR","SD","PD"))
-#pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/cluster_plots/DeltaCCF_all_paired_variants_clusters_rmSanquin.pdf")
+
 
 ggplot(master_ccf_unscreened,aes(x=cluster_with_TPos,y=deltaCCF,fill=cluster_with_TPos)) + geom_boxplot(outlier.shape = NA) + facet_wrap(~ myBOR) + 
   theme_pubclean() + theme(axis.text.x = element_text(angle = 90)) + stat_compare_means() +

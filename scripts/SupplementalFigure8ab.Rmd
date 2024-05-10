@@ -20,13 +20,12 @@ library(grid)
 ```
 
 ```{r input, echo=FALSE, warning=FALSE}
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
-master_file_ndt<-"master_NDT_VMResults_v2_CCFmean_duplicated.txt"
-master_file_ndt<-"master_NDT_VMResults_v2_CCFmean.txt"
+data_dir<-"/data/"
+master_file<-"master_maf.txt"
+master_file_ndt<-"master_NDT.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
 master_ndt<-read.delim(paste0(data_dir,master_file_ndt),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/model_bootstrap70/supp8/"
+
 ```
 
 ```{r input2,echo=FALSE, warning=FALSE}
@@ -78,7 +77,7 @@ peptide_encode = function(peptide){
 
 
 ```{r echo=FALSE}
-master<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/createMaster/data/PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff.txt",header = TRUE, sep = "\t")
+master<-read.delim("master_maf.txt",header = TRUE, sep = "\t")
 master<-master[which(master$Pep_Length==9),]
 master<-master[which(master$MT.Allele=="A0201"),]
 #master<-master[which(master$Variant_Type=="SNP"),]

@@ -51,11 +51,8 @@ ex = peptide_encode("IVTDFSVIK")
 ## now run peptide_encode on all of your peptides to generate a matrix of encodings
 ## some pseudo-code to do this:
 ### Master data frame
-#master<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/createMaster/data/PAIRED_MASTER_all_sanquin_peptides_July28_NoNA_ccf.txt",header = TRUE, sep = "\t")
-master<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/createMaster/data/PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff.txt",header = TRUE, sep = "\t")
-#master<-master[which(master$HLA=="HLA-A*02:01"),]
+master<-read.delim("master_maf.txt",header = TRUE, sep = "\t")
 master<-master[which(master$Pep_Length==9),]
-#master<-master[which(master$Variant_Type=="SNP"),]
 peptides_sequence<-master$MT.Peptide.x
 
 ### creating logo plots 
@@ -163,32 +160,6 @@ plot(motif,ic.scale=FALSE)
 
 
 
-# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/motif_tet+_allHLA_2cell.pdf", onefile = TRUE,width=6,height=3)
-# plot(motif1,ic.scale=FALSE)
-# dev.off()
-# 
-# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/heatmap_tet+_allHLA_2cell_1.pdf",width=6,height=8)
-# print(p1)
-# dev.off()
-# 
-# 
-# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/motif_tet-_allHLA_2cell.pdf", onefile = TRUE,width=6,height=3)
-# plot(motif2,ic.scale=FALSE,)
-# dev.off()
-# 
-# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/heatmap_tet-_allHLA_2cell_1.pdf",width=6,height=8)
-# print(p2)
-# dev.off()
-# 
-# 
-# 
-# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/motif_allHLA_2cell.pdf", onefile = TRUE,width=6,height=3)
-# plot(motif,ic.scale=FALSE,)
-# dev.off()
-# 
-# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/model_outputs/integrated_model/bootstrap_50runs_70/predictions_m50/seqLogo/heatmap_allHLA_2cell.pdf",width=6,height=8)
-# print(p3)
-# dev.off()
-# 
+
 ```
 

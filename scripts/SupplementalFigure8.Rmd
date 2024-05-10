@@ -18,13 +18,12 @@ library(dplyr)
 ```
 
 ```{r input, echo=FALSE, warning=FALSE}
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
-master_file_ndt<-"master_NDT_VMResults_v2_CCFmean_duplicated.txt"
-master_file_ndt<-"master_NDT_VMResults_v2_CCFmean.txt"
+data_dir<-"data/"
+master_file<-"master.txt"
+master_file_ndt<-"master_NDT.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
 master_ndt<-read.delim(paste0(data_dir,master_file_ndt),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/model_bootstrap70/supp8/"
+
 ```
 
 ```{r input2,echo=FALSE, warning=FALSE}
@@ -41,7 +40,7 @@ clinical_data_response$myBOR<-gsub("CR/PR","PR",clinical_data_response$myBOR)
 
 ```{r FigC, echo=FALSE, warning=FALSE}
 
-FeatureRank<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/feature_rank_A0201_tt.txt",header = TRUE,sep="\t")
+FeatureRank<-read.delim("feature_rank_A0201_tt.txt",header = TRUE,sep="\t")
 
 AAindexRank<-FeatureRank[which(startsWith(FeatureRank$feature,"SeqPos")),]
 
@@ -98,8 +97,8 @@ print(aa4679_4779)
 ```{r FigD, echo=FALSE, warning=FALSE}
 
 
-AAindexFull<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/AAIndex.txt", sep="\t", header=T, row.names = 1)
-tetposneg<-read.delim("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/label_A0201_tt.txt", sep="\t", header=F)
+AAindexFull<-read.delim("iFeature/AAIndex.txt", sep="\t", header=T, row.names = 1)
+tetposneg<-read.delim("label_A0201_tt.txt", sep="\t", header=F)
 colnames(tetposneg)<-c("peptidePatient", "TetStatus")
 mergedTable<-merge(AAindexFull, tetposneg, by.x=0, by.y="peptidePatient")
 mergedTable$Tetramer<-ifelse(mergedTable$TetStatus==1, "Positive", "Negative")
@@ -147,7 +146,7 @@ table(master$tetramer_20cell)
 s_master<-master[which(!is.na(master$Binder)),c("patient","PT_MUT","PT_PEP","MT.Allele","tetramer","tetramer_20cell","tetramer_ml","Binder","myBOR","MT.Score","Pep_Length","AbsoluteSum")]
 s_master_a0201<-s_master[which(s_master$MT.Allele=="A0201"),]
 s_master_a0201<-s_master_a0201[which(s_master_a0201$Pep_Length == 9),]
-aaindex_file<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/TTN/all/output/AAINDEX.txt"
+aaindex_file<-"TTN/AAINDEX.txt"
 
 aaindex_df<-read.delim(aaindex_file,header=TRUE, sep="\t")
 aaindex_feature<-aaindex_df[,c("X.","SeqPos.4.JOND920102")]
@@ -155,8 +154,7 @@ s_master_a0201<-unique(merge(s_master_a0201, aaindex_feature,by.x="PT_PEP",by.y=
 feature<-"SeqPos.4.JOND920102"
 
 ss_master<-s_master_a0201[which(!is.na(s_master_a0201$tetramer)),]
-# ggplot(ss_master, aes(x=tetramer,y=SeqPos.4.JOND920102, fill=tetramer)) + geom_boxplot() + stat_compare_means() +theme_pubr()
-# ggplot(ss_master, aes(x=tetramer_ml,y=SeqPos.4.JOND920102, fill=tetramer_ml)) + geom_boxplot() + stat_compare_means()+theme_pubr()
+
 #pdf(paste0(out_dir,"SupplementaFigureE.pdf"),height=4,width=4)
 ggplot(ss_master, aes(x=tetramer_20cell,y=SeqPos.4.JOND920102, fill=tetramer_20cell)) + geom_boxplot() + stat_compare_means()+theme_pubr()
 #dev.off()
@@ -169,13 +167,12 @@ s_master_a0201$tetramer_ml[which(is.na(s_master_a0201$tetramer_ml))]<-"NON_BINDE
 s_master_a0201$tetramer[which(is.na(s_master_a0201$tetramer))]<-"NON_BINDER"
 my_comparisons<-list(c("TETRAMER+","TETRAMER-"),c("TETRAMER+","NON_BINDER"),c("TETRAMER-","NON_BINDER"))
 
-# ggplot(s_master_a0201, aes(x=tetramer,y=SeqPos.4.JOND920102, fill=tetramer)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
+
 
 #pdf(paste0(out_dir,"SupplementalFigureG.pdf"),height=4, width = 4)
 ggplot(s_master_a0201, aes(x=tetramer_ml,y=SeqPos.4.JOND920102, fill=tetramer_ml)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
 #dev.off()
 
-# ggplot(s_master_a0201, aes(x=tetramer_20cell,y=SeqPos.4.JOND920102, fill=tetramer_20cell)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
 
 
 ```
@@ -184,19 +181,19 @@ ggplot(s_master_a0201, aes(x=tetramer_ml,y=SeqPos.4.JOND920102, fill=tetramer_ml
 ## Figure H
 ```{r Figure H, echo=FALSE, warning=FALSE}
 s_master_a0201<-s_master_a0201[which(s_master_a0201$Pep_Length == 9),]
-# ggplot(s_master_a0201, aes(x=tetramer,y=MT.Score, fill=tetramer)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
+
 #pdf(paste0(out_dir,"SupplementalFigureH.pdf"),height = 4,width = 4)
 ggplot(s_master_a0201, aes(x=tetramer_ml,y=MT.Score, fill=tetramer_ml)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
 #dev.off()
-# ggplot(s_master_a0201, aes(x=tetramer_20cell,y=MT.Score, fill=tetramer_20cell)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons)+theme_pubr()
+
 
 
 ```
 
 
 ```{r J2_continuous, echo=FALSE, warning=FALSE}
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+data_dir<-"data/"
+master_file<-"master_maf.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
 x=20
 master$tetramer_20cell<-ifelse(master$AbsoluteSum > x, "TETRAMER+","TETRAMER-")
@@ -205,7 +202,7 @@ s_master<-master[which(!is.na(master$Binder)),c("patient","PT_MUT","PT_PEP","MT.
 s_master_a0201<-s_master[which(s_master$MT.Allele=="A0201"),]
 s_master_a0201<-s_master_a0201[which(s_master_a0201$Pep_Length == 9),]
 
-aaindex_file<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/MachineLearning_v2/data/TTN/all/output/AAINDEX.txt"
+aaindex_file<-"/AAINDEX.txt"
 
 aaindex_df<-read.delim(aaindex_file,header=TRUE, sep="\t")
 aaindex_feature<-aaindex_df[,c("X.","SeqPos.4.JOND920102")]
@@ -249,10 +246,10 @@ c_data$scores<-score
 ## use scores to plot NB,T+,T-
 my_comparisons<-list(c("TETRAMER+","TETRAMER-"),c("TETRAMER+","NON_BINDER"),c("TETRAMER-","NON_BINDER"))
 
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/SupplementalFigure8/May/"
-pdf(paste0(out_dir,"SupplementalFigureJ2.pdf"),height=5,width=5)
+
+#pdf(paste0(out_dir,"SupplementalFigureJ2.pdf"),height=5,width=5)
 ggplot(c_data, aes(x=tetramer_ml,y=scores, fill=tetramer_ml)) + geom_boxplot() + stat_compare_means(comparisons = my_comparisons,size = 5)+theme_pubr() +xlab("")+ylab("Prediction Scores") + theme(legend.position = "none") 
-dev.off()
+#dev.off()
 
 
 ```

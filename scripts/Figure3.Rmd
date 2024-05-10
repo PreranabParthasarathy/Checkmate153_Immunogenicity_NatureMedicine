@@ -19,18 +19,12 @@ set.seed(7)
 
 ###           input: master 
 ```{r input,echo=FALSE}
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+data_dir<-"data/"
+master_file<-"master_maf.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/"
+
 ```
 
-```{r input1, echo=FALSE}
-data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
-master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
-#out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/"
-```
 
 ###           input: clinical response data
 ```{r input2, echo=FALSE}
@@ -46,7 +40,7 @@ clinical_data_response$myBOR<-gsub("CR/PR","PR",clinical_data_response$myBOR)
 
 
 ```{r submittedFigure3C, echo=F}
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master_file<-"master_maf.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
 # table(master$tetramer)
 # table(master$Binder)
@@ -107,15 +101,13 @@ master_plot2<-master_plot1_1[which(master_plot1_1$tetramer == "TETRAMER+"),]
 ggplot(master_plot2, aes(x=increaseTcell,fill=increaseTcell)) + geom_bar()  + theme_pubclean() + labs(y=" Count of tetramer+ peptides", x="T cells")+scale_fill_manual(values=c("khaki1", "hotpink1"))
 p2<-ggplot(master_plot2, aes(x=increaseTcell, y=ccf_change, fill=increaseTcell)) + geom_boxplot() +stat_compare_means(method = "t.test") + theme_pubclean() + labs(y=" Delta CCF", x="T cells")+scale_fill_manual(values=c("khaki1", "hotpink1"))
 p2
-# pdf("/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/May/Figure3F_tetramerPos.pdf",height=4,width=5)
-# print(p2)
-# dev.off()
+
 
 
 ```
 
 ```{r 3E, echo=FALSE}
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+master_file<-"master_maf.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
 s_master<-master[which(!is.na(master$Binder)),]
 s_master$myBOR<-factor(s_master$myBOR,levels = c("PD","SD","PR"))
@@ -141,11 +133,11 @@ scale_fill_manual(values = c("green","orange","red")) +theme_pubclean()+ ylab("L
 
 
 ```{r input_2, include=FALSE}
-data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
-master_file<-"master_NDT_VMResults_v2_CCFmean.txt"
-#master_file<-"master_NDT_VMResults_v2_CCFmean_duplicated.txt"
+data_dir<-"data/"
+master_file<-"master_NDT.txt"
+
 master_ndt<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/"
+
 ```
 
 ### 3H
@@ -153,13 +145,13 @@ How many patients out of the 64 patients have the tetramer+ peptides
 
 ```{r 3H, echo=FALSE,warning=FALSE}
 
-data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+data_dir<-"data/"
+master_file<-"master_maf.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/"
 
-all_peptides<-rbind(read.delim(file="/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/peptides/BMS_153.AllBindersPan_wgenes.9.txt",header = TRUE,sep = "\t"),
-                    read.delim(file="/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/Input/AutoFilt/peptides/BMS_153.AllBindersPan_wgenes.10.txt",header = TRUE,sep = "\t"))
+
+all_peptides<-rbind(read.delim(file="BMS_153.AllBindersPan_wgenes.9.txt",header = TRUE,sep = "\t"),
+                    read.delim(file="BMS_153.AllBindersPan_wgenes.10.txt",header = TRUE,sep = "\t"))
 all_peptides$patient<-str_split_fixed(all_peptides$Sample,"_",2)[,1]
 keep_cols<-c("Sample","HLAI","WT.Peptide","MT.Peptide","WT.Allele","MT.Allele","WT.Score","MT.Score","CHROM_POS_REF_ALT","Hugo_Symbol","patient")
 all_peptides<-all_peptides[,keep_cols]
@@ -179,8 +171,7 @@ for(i in 1:nrow(all_peptides)){
 
 tpos_peptides<-master$MT.Peptide.x[which(master$tetramer=="TETRAMER+")]
 
-#a<-all_peptides[which(all_peptides$MT.Peptide %in% tpos_peptides),c("Hugo_Symbol","patient","CHROM_POS_REF_ALT","MT.Peptide")]
-#subset_all_peps<-unique(all_peptides[which(all_peptides$MT.Peptide %in% tpos_peptides),c("Hugo_Symbol","patient","CHROM_POS_REF_ALT","MT.Peptide")])
+
 subset_all_peps_1<-unique(all_peptides[which(all_peptides$MT.Peptide %in% tpos_peptides),c("patient","MT.Peptide","Hugo_Symbol")])
 df<-aggregate(subset_all_peps_1,by=list(subset_all_peps_1$MT.Peptide),FUN = "length")
 #df<-aggregate(a,by=list(a$MT.Peptide),FUN = "length")
@@ -201,11 +192,11 @@ ggplot(df,aes(x=Group.1,y=Hugo_Symbol)) + geom_point(stat = "identity") + geom_t
 
 ```{r Fig3I, echo=FALSE, warning=FALSE}
 
-data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
-master_file<-"master_NDT_VMResults_v2_CCFmean.txt"
+data_dir<-"data/"
+master_file<-"master_NDT.txt"
 #master_file<-"master_NDT_VMResults_v2_CCFmean_duplicated.txt"
 master_ndt<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/Figure3/"
+
 krasdata<-master_ndt[master_ndt$Hugo_Symbol == "KRAS",]
 
 krasdata$mut<-str_split_fixed(krasdata$PT_MUT,"_",2)[,2]

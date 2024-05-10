@@ -17,10 +17,10 @@ set.seed(7)
 
 ###           input: master 
 ```{r input, echo=FALSE}
-data_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+data_dir<-"data/"
+master_file<-"master_maf.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
-out_dir<-"/Volumes/chant2lab/ChanLab_Common_Drive/Prerana/projects/BMS153/data/plots/SupplementalFigure7/"
+
 ```
 
 ###           input: clinical response data

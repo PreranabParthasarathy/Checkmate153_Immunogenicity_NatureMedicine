@@ -25,22 +25,17 @@ library(AnnotationDbi)
 library(enrichplot)
 ```
 
+
 ```{r echo=FALSE}
-clincalData<-readRDS(file = "/Volumes/chant2lab/wrkg/projects/active/BMS153/Analysis_Dec_2022/CDKN2A/ClinicalData.rds")
+
+ssgsea_scores<-read.csv("ssGSEA_Scores.csv", row.names = 1)
 
 ```
 
 
 ```{r echo=FALSE}
 
-ssgsea_scores<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Analysis_Dec_2022/Stats_on_Immune/ssGSEA_Scores.csv", row.names = 1)
-
-```
-
-
-```{r echo=FALSE}
-
-Metadatav2<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153/Metadata_bms153.csv")
+Metadatav2<-read.csv("Metadata_bms153.csv")
 
 Metadatav2[sapply(Metadatav2, is.character)] <- lapply(Metadatav2[sapply(Metadatav2, is.character)], as.factor)
 Metadatav2$Response[Metadatav2$Response==""]<-NA
@@ -91,12 +86,12 @@ p1
 ```{r echo=FALSE,warning=FALSE}
 
 
-c5_bp<-read.gmt("/Volumes/chant2lab/CITI_Bioinformatics/GENESETS_SS/Human/MSIGDB/MSIGDB_c5.go.bp.v2023.2.Hs.symbols.gmt")
+c5_bp<-read.gmt("MSIGDB_c5.go.bp.v2023.2.Hs.symbols.gmt")
 c5_bp_sub<-c5_bp[which(str_detect(c5_bp$term,"MUSCLE",negate=TRUE)),]
 
-diff_All<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153_v2_2024_PP/DifferentialExpression_pairedTime_on_vs_pre.csv")
-diff_NR<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153_v2_2024_PP/DifferentialExpression_pairedTime_Response_on_PD_vs_pre_PD.csv")
-diff_R<-read.csv("/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153_v2_2024_PP/DifferentialExpression_pairedTime_Response_on_PRSD_vs_pre_PRSD.csv")
+diff_All<-read.csv("DifferentialExpression_pairedTime_on_vs_pre.csv")
+diff_NR<-read.csv("DifferentialExpression_pairedTime_Response_on_PD_vs_pre_PD.csv")
+diff_R<-read.csv("DifferentialExpression_pairedTime_Response_on_PRSD_vs_pre_PRSD.csv")
 
 diff_All$EnsembleID<-as.character(diff_All$EnsembleID)
 diff_NR$EnsembleID<-as.character(diff_NR$EnsembleID)
@@ -119,7 +114,7 @@ res<-x@compareClusterResult
 res$Description<-gsub("GOBP_","",res$Description)
 res$Description<-gsub("_"," ",res$Description)
 x@compareClusterResult<-res
-# out_dir<-"/Volumes/chant2lab/wrkg/projects/active/BMS153/Figures_dev/RNAseqAnalysis/BMS038vsBMS153comp/BMS153_analysis_12_1_21/BMS153_v2_2024_PP/output/"
+
 # pdf(paste0(out_dir,"fig1D_c5_bp_paired_fromEnsembl_cutoff_from_paper_0.05_0.1_names.pdf"),height=25,width=8)
 dotplot(x,showCategory=10) + theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1))
 #dev.off()

@@ -19,10 +19,10 @@ set.seed(7)
 
 
 ```{r input}
-data_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/"
-master_file<-"PAIRED_MASTER_all_sanquin_peptides_Aug26_NoNA_ccf_newcutoff_clinical.txt"
+data_dir<-"data/"
+master_file<-"master_maf.txt"
 master<-read.delim(paste0(data_dir,master_file),sep="\t",header=TRUE)
-#out_dir<-"Checkmat153_Immunogenicity_NatureMedicine/data/plots/Figure2/"
+
 ```
 
 ###           input: clinical response data
